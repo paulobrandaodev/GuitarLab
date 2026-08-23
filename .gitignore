@@ -1,0 +1,16 @@
+node_modules/
+out/
+dist/
+.stems/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.env
+.env.bak
+lab/__pycache__/
+lab/models/
+
+# áudio e tablaturas são a biblioteca local do usuário, não código
+songs/
+gptabs/

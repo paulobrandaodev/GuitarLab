@@ -1,0 +1,266 @@
+@import 'tailwindcss';
+
+/*
+  Dark neumorphism, tokens lifted from the reference screenshot.
+  Neumorphism is inherently low-contrast, so body text always sits at AA
+  against --bg-raised and the accent gradient is reserved for large elements.
+*/
+
+@theme {
+  --color-void: #0d0d10;
+  --color-base: #1c1c22;
+  --color-raised: #212128;
+  --color-sunken: #17171c;
+  --color-edge: #2a2a33;
+
+  --color-txt: #f2f2f5;
+  --color-txt-dim: #8b8b98;
+  /*
+   * Was #6a6a78, which measured 3.0:1 against --color-raised — under the bar
+   * for 10px uppercase micro-labels, and the reason several small labels read
+   * as invisible on this dark surface. #7c7c8b measures 3.9:1 and still sits a
+   * clear step below --color-txt-dim, so the three-level hierarchy survives.
+   */
+  --color-txt-micro: #7c7c8b;
+
+  --color-accent-1: #ffd15c;
+  --color-accent-2: #ff8a5c;
+  --color-accent-3: #ff4e8a;
+
+  --color-ok: #3ddc84;
+  --color-warn: #ffb84d;
+  --color-danger: #ff5c72;
+  --color-info: #5cc8ff;
+
+  --radius-neu: 22px;
+  --radius-neu-lg: 28px;
+  --radius-neu-sm: 16px;
+
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', ui-monospace, monospace;
+}
+
+:root {
+  --shadow-light: rgba(255, 255, 255, 0.045);
+  --shadow-dark: rgba(0, 0, 0, 0.55);
+  --gradient-hot: linear-gradient(135deg, #ffd15c 0%, #ff8a5c 45%, #ff4e8a 100%);
+  --gradient-hot-soft: linear-gradient(
+    135deg,
+    rgba(255, 209, 92, 0.16),
+    rgba(255, 78, 138, 0.16)
+  );
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-base);
+  color: var(--color-txt);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ------------------------------------------------------------ neumorphism */
+
+.neu-raised {
+  background: var(--color-raised);
+  box-shadow:
+    -6px -6px 14px var(--shadow-light),
+    8px 8px 18px var(--shadow-dark);
+}
+
+.neu-raised-sm {
+  background: var(--color-raised);
+  box-shadow:
+    -3px -3px 7px var(--shadow-light),
+    4px 4px 10px var(--shadow-dark);
+}
+
+.neu-inset {
+  background: var(--color-sunken);
+  box-shadow:
+    inset -4px -4px 10px rgba(255, 255, 255, 0.03),
+    inset 5px 5px 12px rgba(0, 0, 0, 0.6);
+}
+
+.neu-inset-sm {
+  background: var(--color-sunken);
+  box-shadow:
+    inset -2px -2px 5px rgba(255, 255, 255, 0.025),
+    inset 3px 3px 7px rgba(0, 0, 0, 0.55);
+}
+
+/* pressable surface: raised at rest, sunken while held */
+.neu-press {
+  background: var(--color-raised);
+  box-shadow:
+    -4px -4px 10px var(--shadow-light),
+    5px 5px 12px var(--shadow-dark);
+  transition:
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+.neu-press:hover:not(:disabled) {
+  box-shadow:
+    -5px -5px 12px var(--shadow-light),
+    6px 6px 15px var(--shadow-dark);
+}
+.neu-press:active:not(:disabled) {
+  box-shadow:
+    inset -3px -3px 7px rgba(255, 255, 255, 0.03),
+    inset 4px 4px 9px rgba(0, 0, 0, 0.6);
+  transform: translateY(1px);
+}
+.neu-press:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/*
+  The glowing active item from the reference nav: a gradient ring drawn as a
+  border via two backgrounds clipped differently, plus a soft outer bloom.
+*/
+.neu-glow {
+  position: relative;
+  background:
+    linear-gradient(var(--color-raised), var(--color-raised)) padding-box,
+    var(--gradient-hot) border-box;
+  border: 1.5px solid transparent;
+  box-shadow:
+    0 0 14px rgba(255, 138, 92, 0.28),
+    -3px -3px 8px var(--shadow-light),
+    4px 4px 10px var(--shadow-dark);
+}
+
+.gradient-text {
+  background: var(--gradient-hot);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gradient-bg {
+  background: var(--gradient-hot);
+}
+
+.micro-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-txt-micro);
+}
+
+/* ---------------------------------------------------------------- scrollbar */
+
+.scroll-area {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-edge) transparent;
+}
+.scroll-area::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-area::-webkit-scrollbar-thumb {
+  background: var(--color-edge);
+  border-radius: 4px;
+}
+.scroll-area::-webkit-scrollbar-thumb:hover {
+  background: #3a3a45;
+}
+
+/* ------------------------------------------------------------------ misc */
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  color: inherit;
+  user-select: text;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-accent-2);
+  outline-offset: 2px;
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-spin-slow {
+  animation: spin-slow 1.4s linear infinite;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 1.8s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------- alphaTab */
+
+/*
+  alphaTab creates its cursor elements but ships no stylesheet in the ESM dist,
+  so without these rules the playback cursor exists in the DOM and is invisible.
+  `.at-cursor-bar` is the highlight over the whole bar being played and
+  `.at-cursor-beat` is the thin line that sweeps across it — the same pair Guitar
+  Pro draws. Both are inside a `pointer-events: none` wrapper alphaTab positions.
+*/
+
+.at-cursor-bar {
+  background: rgba(255, 138, 92, 0.14);
+  border-left: 1px solid rgba(255, 138, 92, 0.35);
+  border-right: 1px solid rgba(255, 138, 92, 0.35);
+}
+
+.at-cursor-beat {
+  background: var(--color-accent-2);
+  width: 2px;
+  box-shadow: 0 0 8px rgba(255, 138, 92, 0.9);
+}
+
+.at-selection div {
+  background: rgba(92, 200, 255, 0.16);
+}
+
+/* notes under the beat cursor — SVG glyphs, so fill/stroke rather than color */
+.at-highlight * {
+  fill: var(--color-accent-2);
+  stroke: var(--color-accent-2);
+}

@@ -1,0 +1,40 @@
+# Optional GPU sidecar. The app works fully without it — only stem separation
+# and automatic analysis need the container.
+services:
+  forge-lab:
+    build: ./lab
+    container_name: setlist-lab
+    ports:
+      - "127.0.0.1:8756:8756"
+    volumes:
+      # The sidecar's own source, live. The image bakes a copy at build time, but
+      # editing lab/app/ and running `npm run lab:up` used to leave the old code
+      # running inside the container — the analysis silently stayed one version
+      # behind. Mounted read-only over that copy, with uvicorn watching it.
+      - "F:/Documentos/Guitarra/SetList/lab/app:/app/app:ro"
+      # read-only mounts of the media the app points at
+      - "F:/Documentos/Guitarra/SetList/songs:/data/songs:ro"
+      - "F:/Documentos/Guitarra/SetList/gptabs:/data/gptabs:ro"
+      # stems are written back here so Electron can read them
+      - "F:/Documentos/Guitarra/SetList/.stems:/data/stems"
+      # cache model weights across restarts, otherwise every run re-downloads
+      - "setlist-lab-models:/models"
+    command:
+      ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8756",
+       "--reload", "--reload-dir", "/app/app"]
+    environment:
+      STEMS_DIR: /data/stems
+      # Maps Windows host paths to their container mount points, so the app can
+      # keep sending real paths and the container resolves them.
+      PATH_MAP: "f:/documentos/guitarra/setlist/songs=>/data/songs;f:/documentos/guitarra/setlist/gptabs=>/data/gptabs;f:/documentos/guitarra/setlist/.stems=>/data/stems"
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  setlist-lab-models:
