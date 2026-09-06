@@ -2,6 +2,17 @@ import { app, ipcMain, shell, dialog, BrowserWindow } from 'electron'
 import { readFileSync, existsSync, copyFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import { config, saveLibraryPaths } from '../config'
+import {
+  activeSecrets,
+  currentLocale,
+  encryptionAvailable,
+  saveSettings,
+  settingViews
+} from '../settings'
+import { redactSecrets } from '../settings-core'
+import { encryptionHint, ENCRYPTION_UNAVAILABLE } from '../secretbox'
+import { probeProvider } from '../services/llm/probe'
+import { asEnum, asHttpUrl, asStringRecord } from './guard'
 import * as repo from '../db/repo'
 import {
   importAll,
@@ -52,8 +63,16 @@ function handle(channel: string, fn: Handler): void {
     try {
       return await (fn as (...a: unknown[]) => unknown)(...args)
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      console.error(`[ipc] ${channel} falhou:`, message)
+      const raw = err instanceof Error ? err.message : String(err)
+      /*
+       * Strip any API key that made it into the message before it leaves the
+       * main process. An exception thrown by fetch can quote the URL or the
+       * headers it was handed, and those carry keys. Best effort by
+       * construction: it only masks values it knows, and a key mangled by
+       * whatever threw slips past.
+       */
+      const message = redactSecrets(raw, activeSecrets())
+      console.error(`[ipc] ${channel} failed:`, message)
       return { __error: message }
     }
   })
@@ -97,8 +116,12 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
    * launch — the app restarts itself rather than leaving half the process
    * pointing at the old library.
    */
-  handle('library:setPaths', (next: Partial<Record<'gptabs' | 'songs' | 'stems', string>>) => {
-    saveLibraryPaths(next)
+  handle('library:setPaths', (raw: unknown) => {
+    const next = asStringRecord(raw, 'paths', 8)
+    for (const key of Object.keys(next)) {
+      asEnum(key, 'folder', ['gptabs', 'songs', 'stems'] as const)
+    }
+    saveLibraryPaths(next as Partial<Record<'gptabs' | 'songs' | 'stems', string>>)
     setTimeout(() => {
       app.relaunch()
       app.exit(0)
@@ -759,9 +782,45 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     }
   })
 
+  /* ------------------------------------------------------------ settings */
+
+  /*
+   * Reading is cheap and the renderer refreshes often, so this returns the whole
+   * catalogue. Secret values never appear: settingViews() reports only whether
+   * something is set, plus where the effective value came from, which is what
+   * the UI needs to explain "I pasted a key and nothing happened".
+   */
+  handle('settings:get', () => ({
+    settings: settingViews(),
+    encryption: { available: encryptionAvailable(), hint: encryptionHint() },
+    locale: currentLocale()
+  }))
+
+  handle('settings:set', (raw: unknown) => {
+    const patch = asStringRecord(raw, 'settings')
+    const result = saveSettings(patch)
+    if (!result.ok && result.error === ENCRYPTION_UNAVAILABLE) {
+      return { ok: false, error: encryptionHint() }
+    }
+    return { ok: result.ok, changed: result.changed }
+  })
+
+  /*
+   * A real call to the provider, not just "is a key present". available() is
+   * the right check for routing but would report a mistyped key as fine.
+   */
+  handle('settings:testProvider', (name: unknown) =>
+    probeProvider(asEnum(name, 'provider', ['gemini', 'openai', 'groq', 'ollama'] as const))
+  )
+
   /* --------------------------------------------------------------- shell */
 
-  handle('shell:openExternal', (url: string) => shell.openExternal(url))
+  /*
+   * Restricted to http(s). This call hands its argument to the operating
+   * system, which will act on file: URLs and on any registered custom scheme,
+   * so an unvalidated string here is the one real hole in this file.
+   */
+  handle('shell:openExternal', (url: unknown) => shell.openExternal(asHttpUrl(url)))
   handle('shell:showItem', (path: string) => shell.showItemInFolder(path))
   handle('shell:pickFolder', async () => {
     const win = getWindow()

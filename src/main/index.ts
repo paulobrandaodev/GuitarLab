@@ -4,6 +4,9 @@ import { mkdirSync, existsSync, statSync, createReadStream } from 'node:fs'
 import { Readable } from 'node:stream'
 import { pathToFileURL } from 'node:url'
 import { config } from './config'
+import { setSystemLocale } from './settings'
+import { registerSettingsEffects } from './settings-effects'
+import { pickLocale } from '@shared/i18n'
 import { initDb, closeDb } from './db/client'
 import { registerIpc } from './ipc'
 import { refreshAllRunning } from './services/lab'
@@ -203,6 +206,17 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  /*
+   * Locale and settings effects are wired here, not at import time, because
+   * neither can work earlier: getPreferredSystemLanguages only answers after
+   * ready, and so does safeStorage, which the settings store needs to read a
+   * secret. getPreferredSystemLanguages is the right question ("what does this
+   * person read?") where getLocale answers a regional-formatting one, so it
+   * leads and getLocale is the fallback.
+   */
+  setSystemLocale(pickLocale([...app.getPreferredSystemLanguages(), app.getLocale()]))
+  registerSettingsEffects()
+
   for (const dir of [config.paths.stems, config.paths.waveforms, config.paths.screenshots]) {
     mkdirSync(dir, { recursive: true })
   }

@@ -15,11 +15,22 @@ export async function ffmpegVersion(): Promise<string | null> {
   if (_cachedVersion !== undefined) return _cachedVersion
   try {
     const { stdout } = await exec(config.ffmpeg.path, ['-version'], BIG_BUFFER)
-    _cachedVersion = stdout.split('\n')[0]?.trim() ?? 'desconhecida'
+    _cachedVersion = stdout.split('\n')[0]?.trim() ?? 'unknown'
   } catch {
     _cachedVersion = null
   }
   return _cachedVersion
+}
+
+/**
+ * Forget the memoised version string.
+ *
+ * `ffmpegVersion` caches because it spawns a process, but the path it spawns is
+ * now user-editable: after someone points FFMPEG_PATH at a real binary, the
+ * cached null would keep the app insisting FFmpeg is missing.
+ */
+export function resetFfmpegCache(): void {
+  _cachedVersion = undefined;
 }
 
 export async function ffmpegAvailable(): Promise<boolean> {

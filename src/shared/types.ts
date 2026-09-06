@@ -553,3 +553,33 @@ export interface ChordMapView {
   spans: ChordSpan[]
   updatedAt: number
 }
+
+/* ------------------------------------------------------------------ settings */
+
+/** Where a resolved setting came from, shown next to each field. */
+export type SettingSource = 'env' | 'user' | 'dotenv' | 'default'
+
+export type SettingGroup = 'spotify' | 'youtube' | 'llm' | 'lab' | 'media' | 'app'
+
+/**
+ * One setting, as the renderer sees it.
+ *
+ * A secret's `value` is always empty and `present` says whether one is stored.
+ * Modelling it this way means leaking a key would have to be written on
+ * purpose rather than forgotten.
+ */
+export interface SettingView {
+  key: string
+  group: SettingGroup
+  secret: boolean
+  source: SettingSource
+  present: boolean
+  value: string
+}
+
+export interface SettingsSnapshot {
+  settings: SettingView[]
+  /** Whether the OS will encrypt secrets, and why not when it will not. */
+  encryption: { available: boolean; hint: string }
+  locale: string
+}

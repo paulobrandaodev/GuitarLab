@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { create } from 'zustand'
 import { IconButton, Toast, useToast, cx } from './components/ui'
 import { AiActivityBar } from './components/AiActivityBar'
+import { SetupBanner } from './components/SetupBanner'
 import { connectAiActivity } from './lib/aiActivity'
 import {
   IconSetlist,
@@ -175,7 +176,7 @@ function Screen({ route }: { route: Route }): ReactNode {
 }
 
 export default function App(): ReactNode {
-  const { route, back, history } = useNav()
+  const { route, back, history, go } = useNav()
   const { toast, clear } = useToast()
   const [booted, setBooted] = useState(false)
 
@@ -202,6 +203,7 @@ export default function App(): ReactNode {
         <Screen route={route} />
       </main>
       <AiActivityBar />
+      <SetupBanner onOpenSettings={() => go({ name: 'settings' })} />
       <BottomNav />
       {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={clear} />}
     </div>

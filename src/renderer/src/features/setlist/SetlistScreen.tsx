@@ -706,11 +706,14 @@ export function SetlistScreen(): ReactNode {
             <EmptyState
               icon={<IconImport width={26} height={26} />}
               title="Nenhuma música ainda"
-              description="Importe as pastas gptabs/ e songs/."
+              description="Aponte para onde estão seus arquivos e importe. Tablaturas .gp e áudios ficam em pastas separadas."
               action={
-                <NeuButton variant="accent" onClick={runImport} disabled={importing}>
-                  Importar
-                </NeuButton>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <NeuButton variant="accent" onClick={runImport} disabled={importing}>
+                    Importar
+                  </NeuButton>
+                  <NeuButton onClick={() => go({ name: 'settings' })}>Escolher pastas</NeuButton>
+                </div>
               }
             />
           )}

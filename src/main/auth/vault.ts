@@ -1,27 +1,33 @@
-import { safeStorage } from 'electron'
 import { eq } from 'drizzle-orm'
 import { getDb, schema } from '../db/client'
+import { ENCRYPTION_UNAVAILABLE, secretBox } from '../secretbox'
 
 /**
  * OAuth tokens are encrypted with Electron's safeStorage, which uses DPAPI on
  * Windows, so they are bound to the OS user account. Tokens never touch .env
  * and never leave the machine.
+ *
+ * Unlike API keys, these live in the database rather than in settings.json, and
+ * that is on purpose: a token is derivable — one click on Connect mints a new
+ * one — so losing it when the library is copied to another machine costs
+ * nothing. A key the user pasted is not derivable, which is why it lives
+ * elsewhere. See the note at the top of settings.ts.
  */
 
 function encrypt(value: string): string {
-  if (!safeStorage.isEncryptionAvailable()) {
+  try {
+    return secretBox.seal(value)
+  } catch (err) {
     // Better to store nothing than to write a bearer token in cleartext.
-    throw new Error('Criptografia do sistema indisponível — não vou gravar o token em texto puro')
+    if (err instanceof Error && err.message === ENCRYPTION_UNAVAILABLE) {
+      throw new Error('System encryption is unavailable; refusing to store the token in cleartext')
+    }
+    throw err
   }
-  return safeStorage.encryptString(value).toString('base64')
 }
 
 function decrypt(value: string): string | null {
-  try {
-    return safeStorage.decryptString(Buffer.from(value, 'base64'))
-  } catch {
-    return null
-  }
+  return secretBox.open(value)
 }
 
 export interface StoredToken {

@@ -23,7 +23,8 @@ import type {
   TonePlanView,
   LlmProgressEvent,
   SpotifyPlaylistView,
-  PlaylistImportView
+  PlaylistImportView,
+  SettingsSnapshot
 } from '@shared/types'
 
 /** Mirrors the shape exposed by the preload bridge. */
@@ -242,6 +243,15 @@ export interface Api {
       songId: number,
       rawText: string
     ) => Promise<{ content: string; provider: string; model: string }>
+  }
+  settings: {
+    get: () => Promise<SettingsSnapshot>
+    set: (patch: Record<string, string>) => Promise<{
+      ok: boolean
+      changed?: string[]
+      error?: string
+    }>
+    testProvider: (name: string) => Promise<{ ok: boolean; detail: string }>
   }
   status: {
     integrations: () => Promise<IntegrationStatus>

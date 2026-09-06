@@ -1,8 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   NeuCard,
   NeuButton,
-  Badge,
+  NeuSelect,
   Spinner,
   Toast,
   useToast,
@@ -10,10 +10,63 @@ import {
 } from '../../components/ui'
 import { IconSpotify, IconYoutube, IconSparkle, IconLab, IconWave } from '../../components/ui/icons'
 import { api } from '../../lib/api'
-import type { IntegrationStatus } from '@shared/types'
+import { SettingField } from './SettingField'
+import { LOCALES, LOCALE_NAMES } from '@shared/i18n'
+import type { IntegrationStatus, SettingView, SettingsSnapshot } from '@shared/types'
 
 /** The folders the user is allowed to move; the database stays with the app. */
 type LibraryFolder = 'gptabs' | 'songs' | 'stems'
+
+/**
+ * Labels and help for each configurable setting.
+ *
+ * Kept as data rather than as markup so the screen is a loop instead of two
+ * hundred lines of repeated JSX, and so adding a provider is one entry.
+ */
+const FIELDS: Record<string, { label: string; hint?: string; placeholder?: string }> = {
+  spotifyClientId: {
+    label: 'Client ID',
+    hint: 'Crie um app em developer.spotify.com/dashboard. É o fluxo PKCE, então não existe client secret.'
+  },
+  spotifyRedirectUri: {
+    label: 'Redirect URI',
+    hint: 'Precisa estar registrado igualzinho nas configurações do seu app do Spotify.'
+  },
+  youtubeApiKey: {
+    label: 'Chave da API',
+    hint: 'console.cloud.google.com → ative a "YouTube Data API v3" → criar credencial. A cota grátis dá ~100 músicas por dia.'
+  },
+  geminiApiKey: { label: 'Gemini — chave', hint: 'aistudio.google.com/apikey' },
+  geminiModel: { label: 'Gemini — modelo' },
+  openaiApiKey: { label: 'OpenAI — chave', hint: 'platform.openai.com/api-keys' },
+  openaiModel: { label: 'OpenAI — modelo' },
+  openaiBaseUrl: {
+    label: 'OpenAI — endereço',
+    hint: 'Dá para apontar para qualquer serviço compatível com a API da OpenAI.'
+  },
+  groqApiKey: { label: 'Groq — chave', hint: 'console.groq.com/keys' },
+  groqModel: { label: 'Groq — modelo' },
+  ollamaBaseUrl: {
+    label: 'Ollama — endereço',
+    hint: 'Modelos locais, sem chave e sem nada saindo da sua máquina. Instale em ollama.com.'
+  },
+  ollamaModel: { label: 'Ollama — modelo', placeholder: 'ex.: llama3.1:8b' },
+  labUrl: { label: 'Endereço do laboratório' },
+  demucsModel: {
+    label: 'Modelo do Demucs',
+    hint: 'htdemucs_6s separa em 6 faixas; htdemucs faz 4 com qualidade melhor.'
+  },
+  demucsSegment: {
+    label: 'Segmento',
+    hint: 'Fatia o áudio para caber na memória da GPU. Menor = menos VRAM.'
+  },
+  ffmpegPath: {
+    label: 'Caminho do FFmpeg',
+    hint: 'Vazio usa o que estiver no PATH. O ffprobe é derivado desse mesmo caminho.'
+  }
+}
+
+const PROVIDERS = ['gemini', 'openai', 'groq', 'ollama'] as const
 
 function Row({
   icon,
@@ -50,9 +103,40 @@ function Row({
   )
 }
 
+/** A collapsible group of settings. Closed by default: most people touch one. */
+function Group({
+  title,
+  subtitle,
+  children,
+  defaultOpen = false
+}: {
+  title: string
+  subtitle?: string
+  children: ReactNode
+  defaultOpen?: boolean
+}): ReactNode {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <NeuCard className="p-4">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <div>
+          <div className="micro-label">{title}</div>
+          {subtitle && <div className="text-txt-micro mt-1 text-[11px]">{subtitle}</div>}
+        </div>
+        <span className="text-txt-micro text-xs">{open ? '−' : '+'}</span>
+      </button>
+      {open && <div className="divide-edge mt-2 divide-y">{children}</div>}
+    </NeuCard>
+  )
+}
+
 export function SettingsScreen(): ReactNode {
   const { toast, show, clear } = useToast()
   const [status, setStatus] = useState<IntegrationStatus | null>(null)
+  const [snapshot, setSnapshot] = useState<SettingsSnapshot | null>(null)
   const [paths, setPaths] = useState<{
     gptabs: string
     songs: string
@@ -60,15 +144,52 @@ export function SettingsScreen(): ReactNode {
     db: string
   } | null>(null)
   const [connecting, setConnecting] = useState(false)
+  const [testing, setTesting] = useState<string | null>(null)
+  const [probe, setProbe] = useState<Record<string, { ok: boolean; detail: string }>>({})
 
-  const refresh = async (): Promise<void> => {
-    setStatus(await api.status.integrations())
-    setPaths(await api.library.paths())
-  }
+  const refresh = useCallback(async (): Promise<void> => {
+    const [next, snap, folders] = await Promise.all([
+      api.status.integrations(),
+      api.settings.get(),
+      api.library.paths()
+    ])
+    setStatus(next)
+    setSnapshot(snap)
+    setPaths(folders)
+  }, [])
 
   useEffect(() => {
     void refresh()
-  }, [])
+  }, [refresh])
+
+  const byKey = (key: string): SettingView | undefined =>
+    snapshot?.settings.find((s) => s.key === key)
+
+  const save = async (key: string, value: string): Promise<void> => {
+    const res = await api.settings.set({ [key]: value })
+    if (!res.ok) {
+      show(res.error ?? 'Não deu para salvar', 'danger')
+      return
+    }
+    show('Salvo', 'ok')
+    await refresh()
+  }
+
+  const test = async (provider: string): Promise<void> => {
+    setTesting(provider)
+    try {
+      const res = await api.settings.testProvider(provider)
+      setProbe((prev) => ({ ...prev, [provider]: res }))
+    } catch (err) {
+      setProbe((prev) => ({
+        ...prev,
+        [provider]: { ok: false, detail: err instanceof Error ? err.message : 'Falhou' }
+      }))
+    } finally {
+      setTesting(null)
+      await refresh()
+    }
+  }
 
   const connectSpotify = async (): Promise<void> => {
     setConnecting(true)
@@ -93,7 +214,7 @@ export function SettingsScreen(): ReactNode {
     await api.library.setPaths({ [key]: picked })
   }
 
-  if (!status) {
+  if (!status || !snapshot) {
     return (
       <div className="grid h-full place-items-center">
         <Spinner size={28} />
@@ -101,13 +222,66 @@ export function SettingsScreen(): ReactNode {
     )
   }
 
+  const noEncryption = snapshot.encryption.available ? undefined : snapshot.encryption.hint
+
+  const field = (key: string): ReactNode => {
+    const view = byKey(key)
+    if (!view) return null
+    return (
+      <SettingField
+        key={key}
+        view={view}
+        disabled={noEncryption}
+        onSave={(value) => save(key, value)}
+        {...FIELDS[key]}
+      />
+    )
+  }
+
+  /* What is still missing, in the order it hurts. FFmpeg first: it is the only
+     hard requirement, and without it audio import throws with no warning. */
+  const todo = [
+    !status.ffmpeg.available && 'Instalar o FFmpeg e deixá-lo no PATH',
+    !status.llm.configured && 'Configurar um provedor de IA (ou rodar o Ollama local)',
+    !status.spotify.configured && 'Adicionar o Client ID do Spotify (opcional)',
+    !status.youtube.configured && 'Adicionar a chave do YouTube (opcional)'
+  ].filter(Boolean) as string[]
+
   return (
     <div className="scroll-area h-full px-6 pb-4">
       <h1 className="mb-1 text-xl font-bold">Ajustes</h1>
       <p className="text-txt-dim mb-5 text-sm">
-        Estado das integrações. Tudo que estiver desligado apenas desabilita aquele recurso — o
-        app continua funcionando.
+        Cole aqui as suas chaves — elas ficam criptografadas nesta máquina e nunca saem dela. Tudo
+        que estiver desligado apenas desabilita aquele recurso; o app continua funcionando.
       </p>
+
+      {todo.length > 0 && (
+        <NeuCard className="mb-5 p-4">
+          <div className="micro-label mb-2">Primeiros passos</div>
+          <ul className="space-y-1.5 text-xs">
+            {todo.map((item) => (
+              <li key={item} className="text-txt-dim flex items-start gap-2">
+                <span className="text-txt-micro mt-0.5">○</span>
+                {item}
+              </li>
+            ))}
+          </ul>
+          <p className="text-txt-micro mt-3 text-[11px] leading-snug">
+            Só o FFmpeg é obrigatório — sem ele a importação de áudio falha. O resto é opcional.
+          </p>
+        </NeuCard>
+      )}
+
+      {!snapshot.encryption.available && (
+        <NeuCard className="mb-5 p-4">
+          <div className="text-danger micro-label mb-1">Sem criptografia do sistema</div>
+          <p className="text-txt-dim text-xs leading-snug">
+            {snapshot.encryption.hint} As chaves de API não podem ser guardadas — preferimos não
+            gravar nada a gravar em texto puro. Você ainda pode usar o arquivo{' '}
+            <code className="font-mono">.env</code>, e o resto dos ajustes funciona normalmente.
+          </p>
+        </NeuCard>
+      )}
 
       <div className="mb-5 space-y-3">
         <Row
@@ -115,7 +289,7 @@ export function SettingsScreen(): ReactNode {
           title="FFmpeg"
           ok={status.ffmpeg.available}
           detail={status.ffmpeg.version ?? 'não encontrado no PATH'}
-          hint="Usado para ler tags, medir loudness e gerar a forma de onda. Roda sem Docker."
+          hint="O único requisito obrigatório: lê tags, mede loudness e gera a forma de onda. Não precisa de Docker."
         />
 
         <Row
@@ -123,7 +297,7 @@ export function SettingsScreen(): ReactNode {
           title="Spotify"
           ok={status.spotify.connected}
           detail={status.spotify.detail}
-          hint="Login abre no seu navegador (PKCE, sem senha no app). Serve para metadados e para comandar o Spotify aberto via Connect — a API de audio-features foi descontinuada pelo Spotify e não é mais usada."
+          hint="O login abre no seu navegador (PKCE, sem senha no app). Serve para metadados e para comandar o Spotify aberto via Connect."
           action={
             status.spotify.configured ? (
               status.spotify.connected ? (
@@ -150,7 +324,7 @@ export function SettingsScreen(): ReactNode {
           title="YouTube"
           ok={status.youtube.configured}
           detail={status.youtube.detail}
-          hint={`Cota diária: ${status.youtube.quotaUsedToday}/${status.youtube.quotaLimit} unidades. Cada busca custa 100, então são ~100 músicas por dia. Uma busca por música cobre os três papéis.`}
+          hint={`Cota de hoje: ${status.youtube.quotaUsedToday}/${status.youtube.quotaLimit} unidades. Cada busca custa 100, então dá ~100 músicas por dia.`}
         />
 
         <Row
@@ -158,7 +332,7 @@ export function SettingsScreen(): ReactNode {
           title="IA"
           ok={status.llm.configured}
           detail={status.llm.detail}
-          hint="Gemini como principal e Ollama local como reserva. Se o Gemini falhar, o app cai automaticamente para o modelo local."
+          hint="O provedor principal é tentado primeiro; se falhar, o app cai para os da reserva, na ordem."
         />
 
         <Row
@@ -173,6 +347,122 @@ export function SettingsScreen(): ReactNode {
           }
         />
       </div>
+
+      <div className="mb-5 space-y-3">
+        <Group
+          title="Inteligência artificial"
+          subtitle="Planos de treino, análise de técnica e patches de timbre"
+          defaultOpen={!status.llm.configured}
+        >
+          <div className="py-3">
+            <div className="micro-label mb-2">Provedor principal</div>
+            <NeuSelect
+              options={PROVIDERS.map((p) => ({ value: p, label: p }))}
+              value={byKey('llmProvider')?.value ?? 'gemini'}
+              onChange={(v) => void save('llmProvider', v)}
+            />
+            <p className="text-txt-micro mt-1.5 text-[11px] leading-snug">
+              Se ele falhar, o app tenta os da reserva na ordem abaixo.
+            </p>
+          </div>
+
+          {(() => {
+            const view = byKey('llmFallbackProvider')
+            return view ? (
+              <SettingField
+                view={view}
+                label="Reserva"
+                hint="Separados por vírgula, tentados nessa ordem. Deixar o Ollama por último cobre o caso de tudo mais estar fora do ar."
+                onSave={(v) => save('llmFallbackProvider', v)}
+              />
+            ) : null
+          })()}
+
+          {PROVIDERS.map((provider) => (
+            <div key={provider} className="py-1">
+              <div className="flex items-center justify-between gap-3 pt-3">
+                <span className="text-xs font-semibold capitalize">{provider}</span>
+                <div className="flex items-center gap-2">
+                  {probe[provider] && (
+                    <span
+                      className={cx(
+                        'text-[10px]',
+                        probe[provider].ok ? 'text-ok' : 'text-danger'
+                      )}
+                    >
+                      {probe[provider].detail}
+                    </span>
+                  )}
+                  <NeuButton
+                    className="!px-3 !py-1 !text-[10px]"
+                    disabled={testing === provider}
+                    onClick={() => void test(provider)}
+                  >
+                    {testing === provider ? <Spinner size={11} /> : 'testar'}
+                  </NeuButton>
+                </div>
+              </div>
+              {provider === 'gemini' && (
+                <>
+                  {field('geminiApiKey')}
+                  {field('geminiModel')}
+                </>
+              )}
+              {provider === 'openai' && (
+                <>
+                  {field('openaiApiKey')}
+                  {field('openaiModel')}
+                  {field('openaiBaseUrl')}
+                </>
+              )}
+              {provider === 'groq' && (
+                <>
+                  {field('groqApiKey')}
+                  {field('groqModel')}
+                </>
+              )}
+              {provider === 'ollama' && (
+                <>
+                  {field('ollamaBaseUrl')}
+                  {field('ollamaModel')}
+                </>
+              )}
+            </div>
+          ))}
+        </Group>
+
+        <Group title="Spotify" subtitle="Metadados e controle do player aberto">
+          {field('spotifyClientId')}
+          {field('spotifyRedirectUri')}
+        </Group>
+
+        <Group title="YouTube" subtitle="Busca de aulas, backing tracks e playthroughs">
+          {field('youtubeApiKey')}
+        </Group>
+
+        <Group title="Laboratório de áudio" subtitle="Separação de stems e análise automática">
+          {field('labUrl')}
+          {field('demucsModel')}
+          {field('demucsSegment')}
+        </Group>
+
+        <Group title="FFmpeg">{field('ffmpegPath')}</Group>
+      </div>
+
+      <NeuCard className="mb-5 p-4">
+        <div className="micro-label mb-3">Idioma</div>
+        <NeuSelect
+          options={[
+            { value: 'auto', label: `Automático (${LOCALE_NAMES[snapshot.locale as never] ?? snapshot.locale})` },
+            ...LOCALES.map((l) => ({ value: l, label: LOCALE_NAMES[l] }))
+          ]}
+          value={byKey('locale')?.value || 'auto'}
+          onChange={(v) => void save('locale', v)}
+        />
+        <p className="text-txt-micro mt-2 text-[11px] leading-snug">
+          Automático segue o idioma do sistema operacional.
+        </p>
+      </NeuCard>
 
       {paths && (
         <NeuCard className="p-4">
@@ -207,9 +497,9 @@ export function SettingsScreen(): ReactNode {
             ))}
           </div>
           <p className="text-txt-micro mt-3 text-[11px] leading-snug">
-            Trocar uma pasta reinicia o GuitarLab — os caminhos são lidos uma vez, na abertura. As
-            músicas já importadas continuam apontando para os arquivos onde estão. Também dá para
-            fixar tudo pelo <code className="font-mono">.env</code> na raiz do projeto.
+            Trocar uma pasta reinicia o GuitarLab — os caminhos são lidos uma vez, na abertura.
+            Chaves, modelos e endereços não reiniciam nada. As músicas já importadas continuam
+            apontando para os arquivos onde estão.
           </p>
         </NeuCard>
       )}

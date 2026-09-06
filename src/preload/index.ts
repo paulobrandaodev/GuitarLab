@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { SettingsSnapshot } from '@shared/types'
 
 /**
  * Every call funnels through `invoke`, which unwraps the `{ __error }` envelope
@@ -176,6 +177,13 @@ const api = {
     tonePatch: (songId: number) => invoke('llm:tonePatch', songId),
     classifyVideos: (videos: unknown[]) => invoke('llm:classifyVideos', videos),
     toChordPro: (songId: number, rawText: string) => invoke('llm:toChordPro', songId, rawText)
+  },
+  settings: {
+    get: () => invoke<SettingsSnapshot>('settings:get'),
+    set: (patch: Record<string, string>) =>
+      invoke<{ ok: boolean; changed?: string[]; error?: string }>('settings:set', patch),
+    testProvider: (name: string) =>
+      invoke<{ ok: boolean; detail: string }>('settings:testProvider', name)
   },
   status: {
     integrations: () => invoke('status:integrations')

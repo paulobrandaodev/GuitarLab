@@ -51,6 +51,19 @@ function noteFailure(provider: string, message: string): void {
   lastFailure.set(provider, { message, at: Date.now() })
 }
 
+/**
+ * Forget recorded failures, so a provider is retried immediately.
+ *
+ * The breaker in `available()` sits out a full minute after a failure, which is
+ * right for a quota wall and wrong right after the user fixes the key: they
+ * would paste a correct key, press Test, and still be told about the old error.
+ * Called by the settings effects whenever a provider's credentials change.
+ */
+export function clearLlmFailures(provider?: string): void {
+  if (provider) lastFailure.delete(provider)
+  else lastFailure.clear()
+}
+
 /** A 429 is worth retrying; anything else should fall through to the next provider. */
 class RateLimitError extends Error {
   constructor(
@@ -66,7 +79,9 @@ class RateLimitError extends Error {
 
 class GeminiDriver implements LlmDriver {
   name = 'gemini'
-  model = config.llm.gemini.model
+  get model(): string {
+    return config.llm.gemini.model
+  }
 
   async available(): Promise<boolean> {
     if (!config.llm.gemini.apiKey) return false
@@ -186,7 +201,9 @@ class GeminiDriver implements LlmDriver {
  */
 class OpenAiDriver implements LlmDriver {
   name = 'openai'
-  model = config.llm.openai.model
+  get model(): string {
+    return config.llm.openai.model
+  }
 
   async available(): Promise<boolean> {
     if (!config.llm.openai.apiKey) return false
@@ -279,7 +296,9 @@ class OpenAiDriver implements LlmDriver {
 
 class GroqDriver implements LlmDriver {
   name = 'groq'
-  model = config.llm.groq.model
+  get model(): string {
+    return config.llm.groq.model
+  }
 
   async available(): Promise<boolean> {
     return Boolean(config.llm.groq.apiKey)
@@ -334,7 +353,9 @@ class GroqDriver implements LlmDriver {
 
 class OllamaDriver implements LlmDriver {
   name = 'ollama'
-  model = config.llm.ollama.model
+  get model(): string {
+    return config.llm.ollama.model
+  }
 
   async available(): Promise<boolean> {
     try {
