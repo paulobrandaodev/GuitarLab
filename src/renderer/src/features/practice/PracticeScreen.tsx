@@ -32,7 +32,8 @@ import { MultitrackPlayer } from './MultitrackPlayer'
 import { api, isError, formatDuration } from '../../lib/api'
 import { useNav } from '../../App'
 import type { SongView, SectionView, Instrument, MediaAssetView } from '@shared/types'
-import { INSTRUMENT_LABEL, PRACTICE_INSTRUMENT } from '@shared/types'
+import { useStrings } from '../../lib/i18n'
+import { PRACTICE_INSTRUMENT } from '@shared/types'
 
 type Source = 'gp_synth' | 'stems' | 'youtube'
 
@@ -101,6 +102,7 @@ export function PracticeScreen({
   /** Inside the hub the shell already draws the title, badges and chrome. */
   embedded?: boolean
 }): ReactNode {
+  const str = useStrings()
   const go = useNav((s) => s.go)
   const { toast, show, clear } = useToast()
   const tabRef = useRef<AlphaTabHandle>(null)
@@ -336,7 +338,7 @@ export function PracticeScreen({
               ]}
             />
             <Badge tone="accent">
-              <INSTRUMENT_ICON.guitar width={12} height={12} /> {INSTRUMENT_LABEL.guitar}
+              <INSTRUMENT_ICON.guitar width={12} height={12} /> {str.labels.instrument.guitar}
             </Badge>
           </div>
         </>

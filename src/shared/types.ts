@@ -50,32 +50,11 @@ export const STATUS_ORDER: ProgressStatus[] = [
   'gig_ready'
 ]
 
-export const STATUS_LABEL: Record<ProgressStatus, string> = {
-  not_started: 'Não começou',
-  learning: 'Aprendendo',
-  shaky: 'Inseguro',
-  solid: 'Firme',
-  gig_ready: 'Pronto pro show'
-}
-
-export const INSTRUMENT_LABEL: Record<Instrument, string> = {
-  guitar: 'Guitarra',
-  bass: 'Baixo',
-  drums: 'Bateria',
-  vocals: 'Voz'
-}
-
-export const ROLE_LABEL: Record<YoutubeRole, string> = {
-  lesson_tabs: 'Lesson w/ Tabs',
-  backing_track: 'Backing Track',
-  guitar_only: 'Guitar Only',
-  bass_only: 'Bass Only',
-  drums_only: 'Drums Only',
-  official: 'Oficial',
-  live: 'Ao vivo',
-  cover: 'Cover',
-  unknown: 'Sem classificação'
-}
+/*
+ * Display labels for these enums live in the string catalogue
+ * (src/shared/i18n), not here. A pure types module cannot be
+ * locale-aware without dragging language state into both processes.
+ */
 
 /** The three roles the practice screen offers as dedicated slots. */
 export const PRIMARY_ROLES: YoutubeRole[] = ['lesson_tabs', 'backing_track', 'guitar_only']
@@ -342,10 +321,18 @@ export const RIG_DEFAULT: RigView = {
   output: 'pa'
 }
 
-export const OUTPUT_LABEL: Record<RigView['output'], string> = {
-  pa: 'PA / mesa de som',
-  fones: 'Fones de ouvido',
-  amp: 'Amplificador'
+/**
+ * Rig output, in English, for the two places where the words are data rather
+ * than interface: the AI prompt, and the signal chain persisted inside
+ * gear_patches. Translating these would make a patch generated in Spanish
+ * store `chain: ["Guitarra", "COMP", "PA / mesa de sonido"]` and then show
+ * Spanish labels to a Portuguese reader. What the user sees comes from the
+ * catalogue instead.
+ */
+export const RIG_OUTPUT_EN: Record<RigView['output'], string> = {
+  pa: 'PA / mixing desk',
+  fones: 'headphones',
+  amp: 'amplifier'
 }
 
 /** One knob on a pedal block. `value` is 0–100 so it can be drawn as a knob. */

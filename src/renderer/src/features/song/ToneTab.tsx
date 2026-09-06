@@ -24,7 +24,13 @@ import type {
   PatchParam,
   PitchShifterPlan
 } from '@shared/types'
-import { RIG_DEFAULT, OUTPUT_LABEL } from '@shared/types'
+import { useStrings } from '../../lib/i18n'
+
+/** Object.entries, but keeping the value typed as the string it is. */
+function outputEntries(map: Record<string, string>): Array<[string, string]> {
+  return Object.entries(map)
+}
+import { RIG_DEFAULT } from '@shared/types'
 
 /* ------------------------------------------------------------------ knobs */
 
@@ -356,6 +362,7 @@ function PatchCard({
 /* ----------------------------------------------------------------- tab */
 
 export function ToneTab({ song }: { song: SongView }): ReactNode {
+  const str = useStrings()
   const { toast, show, clear } = useToast()
   const [rig, setRig] = useState<RigView>(RIG_DEFAULT)
   const [plan, setPlan] = useState<TonePlanView | null>(null)
@@ -452,7 +459,7 @@ export function ToneTab({ song }: { song: SongView }): ReactNode {
               label="Saída"
               value={rig.output}
               onChange={(v) => setRig({ ...rig, output: v as RigView['output'] })}
-              options={Object.entries(OUTPUT_LABEL).map(([value, label]) => ({ value, label }))}
+              options={outputEntries(str.labels.output).map(([value, label]) => ({ value, label }))}
             />
           </div>
           <NeuButton onClick={saveRig} disabled={savingRig}>
@@ -461,7 +468,7 @@ export function ToneTab({ song }: { song: SongView }): ReactNode {
         </div>
         <p className="text-txt-micro mt-3 text-[11px]">
           A sugestão é escrita para som direto — a IA já compensa o brilho e a falta de gabinete
-          real que a {OUTPUT_LABEL[rig.output].toLowerCase()} expõe.
+          real que a {str.labels.output[rig.output].toLowerCase()} expõe.
         </p>
       </NeuCard>
 

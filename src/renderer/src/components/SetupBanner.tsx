@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { useStrings } from '../lib/i18n'
 import { NeuButton, cx } from './ui'
 import { api } from '../lib/api'
 
@@ -29,6 +30,7 @@ interface Notice {
 }
 
 export function SetupBanner({ onOpenSettings }: { onOpenSettings: () => void }): ReactNode {
+  const str = useStrings()
   const [notice, setNotice] = useState<Notice | null>(null)
   const [dismissed, setDismissed] = useState<string[]>(() => {
     try {
@@ -55,9 +57,9 @@ export function SetupBanner({ onOpenSettings }: { onOpenSettings: () => void }):
         if (!status.ffmpeg.available) {
           notices.push({
             id: 'ffmpeg',
-            text: 'O FFmpeg não foi encontrado. Sem ele, importar áudio não funciona — é o único requisito obrigatório do app.',
+            text: str.setup.ffmpegMissing,
             action: {
-              label: 'como instalar',
+              label: str.setup.howToInstall,
               run: () => api.shell.openExternal('https://ffmpeg.org/download.html')
             }
           })
@@ -101,10 +103,10 @@ export function SetupBanner({ onOpenSettings }: { onOpenSettings: () => void }):
         </NeuButton>
       )}
       <NeuButton className="!px-3 !py-1 !text-[10px]" onClick={onOpenSettings}>
-        ajustes
+        {str.setup.openSettings}
       </NeuButton>
       <NeuButton variant="ghost" className="!px-2 !py-1 !text-[10px]" onClick={dismiss}>
-        dispensar
+        {str.setup.dismiss}
       </NeuButton>
     </div>
   )

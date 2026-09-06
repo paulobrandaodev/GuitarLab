@@ -50,12 +50,15 @@ import type {
   ProgressStatus,
   YoutubeRole
 } from '@shared/types'
+import { useStrings } from '../../lib/i18n'
+
+/** Object.entries, but keeping the value typed as the string it is. */
+function roleEntries(map: Record<string, string>): Array<[string, string]> {
+  return Object.entries(map)
+}
 import {
-  STATUS_LABEL,
   STATUS_ORDER,
-  INSTRUMENT_LABEL,
   PRACTICE_INSTRUMENT,
-  ROLE_LABEL,
   PRIMARY_ROLES
 } from '@shared/types'
 
@@ -75,6 +78,7 @@ function watchUrl(videoId: string): string {
  * both as an escape hatch and because some uploaders forbid embedding.
  */
 function VideoTab({ song }: { song: SongView }): ReactNode {
+  const str = useStrings()
   const { toast, show, clear } = useToast()
   const [refs, setRefs] = useState<YoutubeRefView[]>([])
   const [quota, setQuota] = useState<{ searchesLeft: number; used: number; limit: number } | null>(
@@ -168,7 +172,7 @@ function VideoTab({ song }: { song: SongView }): ReactNode {
           const active = best && current?.id === best.id
           return (
             <NeuCard key={role} className={cx('p-3', active && 'neu-glow')}>
-              <div className="micro-label mb-2">{ROLE_LABEL[role]}</div>
+              <div className="micro-label mb-2">{str.labels.role[role]}</div>
               {best ? (
                 <div className="flex items-center gap-2.5">
                   <button
@@ -254,7 +258,7 @@ function VideoTab({ song }: { song: SongView }): ReactNode {
       {current ? (
         <NeuCard className="p-4">
           <div className="mb-3 flex flex-wrap items-baseline gap-2">
-            <Badge tone="accent">{ROLE_LABEL[current.role]}</Badge>
+            <Badge tone="accent">{str.labels.role[current.role]}</Badge>
             <span className="min-w-0 flex-1 truncate text-sm font-semibold">
               {current.title ?? current.videoId}
             </span>
@@ -287,7 +291,7 @@ function VideoTab({ song }: { song: SongView }): ReactNode {
             <NeuSelect
               value={manualRole}
               onChange={(v) => setManualRole(v as YoutubeRole)}
-              options={Object.entries(ROLE_LABEL)
+              options={roleEntries(str.labels.role)
                 .filter(([k]) => k !== 'unknown')
                 .map(([value, label]) => ({ value, label }))}
             />
@@ -304,7 +308,7 @@ function VideoTab({ song }: { song: SongView }): ReactNode {
           <div className="space-y-1.5">
             {refs.map((r) => (
               <div key={r.id} className="flex items-center gap-2.5 text-xs">
-                <Badge>{ROLE_LABEL[r.role]}</Badge>
+                <Badge>{str.labels.role[r.role]}</Badge>
                 <button
                   onClick={() => setPlayingId(r.id)}
                   className={cx(
@@ -331,7 +335,7 @@ function VideoTab({ song }: { song: SongView }): ReactNode {
                   }}
                   className="neu-inset-sm shrink-0 rounded-md px-1.5 py-1 text-[10px]"
                 >
-                  {Object.entries(ROLE_LABEL).map(([value, label]) => (
+                  {roleEntries(str.labels.role).map(([value, label]) => (
                     <option key={value} value={value} style={{ background: '#212128' }}>
                       {label}
                     </option>
@@ -835,6 +839,7 @@ function ProgressPanel({
   onChange: () => void
   onToggleQueue: (sectionId: number | null) => void
 }): ReactNode {
+  const str = useStrings()
   // Guitar only: bass and drums were noise on a screen the user opens to
   // practise guitar. The data model still keeps one row per instrument.
   const instrument: Instrument = PRACTICE_INSTRUMENT
@@ -857,7 +862,7 @@ function ProgressPanel({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="micro-label">Progresso por trecho</div>
         <Badge tone="accent">
-          <INSTRUMENT_ICON.guitar width={12} height={12} /> {INSTRUMENT_LABEL.guitar}
+          <INSTRUMENT_ICON.guitar width={12} height={12} /> {str.labels.instrument.guitar}
         </Badge>
       </div>
 
@@ -897,7 +902,7 @@ function ProgressPanel({
                         : 'neu-press text-txt-micro'
                     )}
                   >
-                    {STATUS_LABEL[s]}
+                    {str.labels.status[s]}
                   </button>
                 ))}
               </div>

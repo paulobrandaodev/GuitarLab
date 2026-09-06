@@ -36,10 +36,19 @@ import {
   RIG_SETTING_KEY,
   normalizePlan,
   planPitchShifter,
-  buildToneContext,
-  buildTonePrompt,
-  TONE_SYSTEM_PROMPT
+  buildToneContext
 } from '../services/tone'
+import {
+  classifyVideosSystemPrompt,
+  practicePlanSystemPrompt,
+  techniqueSystemPrompt,
+  toChordProSystemPrompt,
+  toneAdviceSystemPrompt,
+  tonePatchPrompt,
+  tonePatchSystemPrompt
+} from '../services/prompts'
+import { mainLocale } from '../i18n'
+import { RIG_OUTPUT_EN } from '@shared/types'
 import { ffmpegVersion } from '../media/ffmpeg'
 import { nextLadderBpm } from '../practice/srs'
 import type {
@@ -53,7 +62,7 @@ import type {
   TonePatchView,
   TonePlanView
 } from '@shared/types'
-import { RIG_DEFAULT, OUTPUT_LABEL } from '@shared/types'
+import { RIG_DEFAULT } from '@shared/types'
 
 type Handler = (...args: never[]) => unknown
 
@@ -502,9 +511,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     const result = await complete([
       {
         role: 'system',
-        content:
-          'Você é um professor de guitarra, baixo e bateria. Responda em português do Brasil, ' +
-          'direto e prático. Formate em markdown curto. Nada de encher linguiça.'
+        content: practicePlanSystemPrompt(mainLocale())
       },
       {
         role: 'user',
@@ -540,9 +547,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     const result = await complete([
       {
         role: 'system',
-        content:
-          'Você é um professor de instrumento. Português do Brasil, objetivo, markdown curto. ' +
-          'Seja concreto sobre técnica — não dê conselho genérico.'
+        content: techniqueSystemPrompt(mainLocale())
       },
       {
         role: 'user',
@@ -628,8 +633,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
     const result = await complete(
       [
-        { role: 'system', content: TONE_SYSTEM_PROMPT },
-        { role: 'user', content: buildTonePrompt(context, rig, pitch) }
+        { role: 'system', content: tonePatchSystemPrompt(mainLocale()) },
+        {
+          role: 'user',
+          content: tonePatchPrompt(context, RIG_OUTPUT_EN[rig.output].toLowerCase(), pitch)
+        }
       ],
       { json: true, ...streamTo(getWindow, 'patch de timbre') }
     )
@@ -677,9 +685,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       [
         {
           role: 'system',
-          content:
-            'Você entende de timbre de guitarra e pedaleiras multiefeito. Português do Brasil, ' +
-            'markdown com títulos curtos (###), listas e valores concretos de ajuste.'
+          content: toneAdviceSystemPrompt(mainLocale())
         },
         {
           role: 'user',
@@ -706,8 +712,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       [
         {
           role: 'system',
-          content:
-            'Classifique vídeos do YouTube para estudo de guitarra. Responda SOMENTE JSON válido.'
+          content: classifyVideosSystemPrompt()
         },
         {
           role: 'user',
@@ -732,9 +737,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     const result = await complete([
       {
         role: 'system',
-        content:
-          'Você converte cifras em texto para o formato ChordPro. Responda SOMENTE o ChordPro, ' +
-          'sem explicação, sem cercas de código.'
+        content: toChordProSystemPrompt()
       },
       {
         role: 'user',

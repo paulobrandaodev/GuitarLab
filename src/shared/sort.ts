@@ -1,3 +1,5 @@
+import { collatorFor } from './format'
+import type { Locale } from './i18n'
 /**
  * Ordering for the song lists.
  *
@@ -23,29 +25,23 @@ export interface SortableSong {
 
 export const SORT_KEYS: SongSortKey[] = ['ordem', 'banda', 'musica', 'afinacao', 'duracao']
 
-export const SORT_LABEL: Record<SongSortKey, string> = {
-  ordem: 'ordem',
-  banda: 'banda',
-  musica: 'música',
-  afinacao: 'afinação',
-  duracao: 'duração'
-}
-
-/** What the direction arrow means for each key, spelled out for the tooltip. */
-export const SORT_DIR_LABEL: Record<SongSortKey, { asc: string; desc: string }> = {
-  ordem: { asc: 'ordem do show', desc: 'ordem do show' },
-  banda: { asc: 'A–Z', desc: 'Z–A' },
-  musica: { asc: 'A–Z', desc: 'Z–A' },
-  afinacao: { asc: 'E Standard no topo, resto A–Z', desc: 'E Standard no topo, resto Z–A' },
-  duracao: { asc: 'menor → maior', desc: 'maior → menor' }
-}
+/* Display labels for these keys live in the string catalogue (shared/i18n). */
 
 /** Names in the E-standard family, which never leave the top of the list. */
 function isEStandard(name: string): boolean {
   return /^\s*e\s*standard\b/i.test(name)
 }
 
-const collator = new Intl.Collator('pt-BR', { sensitivity: 'base', numeric: true })
+/*
+ * Ordering follows the interface language, so that a Spanish reader gets ñ
+ * where they expect it. It defaults to pt-BR rather than to the system locale
+ * so the existing callers and tests keep their behaviour unchanged.
+ */
+let collator = collatorFor('pt-BR')
+
+export function setSortLocale(locale: Locale): void {
+  collator = collatorFor(locale)
+}
 
 /** Missing values sort last in both directions — an empty field is not a small one. */
 function compareText(a: string | null, b: string | null, dir: SortDir): number {

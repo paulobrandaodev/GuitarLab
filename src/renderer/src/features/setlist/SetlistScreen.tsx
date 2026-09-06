@@ -30,15 +30,14 @@ import { SourcesDialog } from './SourcesDialog'
 import { api, formatDuration, formatTotalDuration, formatRelative } from '../../lib/api'
 import { useNav } from '../../App'
 import type { SetlistView, SetlistItemView, SongView, ImportReport } from '@shared/types'
-import { STATUS_LABEL } from '@shared/types'
+
 import {
   sortSongs,
   SORT_KEYS,
-  SORT_LABEL,
-  SORT_DIR_LABEL,
   type SongSortKey,
   type SortDir
 } from '@shared/sort'
+import { useStrings } from '../../lib/i18n'
 
 function statusTone(status: string): 'ok' | 'warn' | 'danger' | 'neutral' {
   if (status === 'gig_ready') return 'ok'
@@ -178,6 +177,7 @@ function SortBar({
   dir: SortDir
   onChange: (key: SongSortKey, dir: SortDir) => void
 }): ReactNode {
+  const str = useStrings()
   return (
     <div className="neu-inset flex flex-wrap items-center gap-1 rounded-[16px] p-1">
       <span className="micro-label px-1.5">ordenar</span>
@@ -190,14 +190,14 @@ function SortBar({
             title={
               key === 'ordem'
                 ? 'A ordem do show, do jeito que você arrastou'
-                : `${SORT_LABEL[key]}: ${SORT_DIR_LABEL[key][active ? dir : 'asc']}`
+                : `${str.labels.sort[key]}: ${str.labels.sortDir[key][active ? dir : 'asc']}`
             }
             className={cx(
               'rounded-[11px] px-2.5 py-1 text-[11px] font-semibold transition-all',
               active ? 'neu-raised-sm gradient-text' : 'text-txt-micro hover:text-txt-dim'
             )}
           >
-            {SORT_LABEL[key]}
+            {str.labels.sort[key]}
             {active && key !== 'ordem' && (
               <span className="ml-1 text-[10px]">{dir === 'asc' ? '↑' : '↓'}</span>
             )}
@@ -372,6 +372,7 @@ function ImportSummary({ report, label }: { report: ImportReport; label: string 
 }
 
 export function SetlistScreen(): ReactNode {
+  const str = useStrings()
   const go = useNav((s) => s.go)
   const { toast, show, clear } = useToast()
 
@@ -699,20 +700,20 @@ export function SetlistScreen(): ReactNode {
       ) : (
         <div className="space-y-2.5">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
-            <div className="micro-label">Biblioteca</div>
+            <div className="micro-label">{str.setlist.library}</div>
             <SortBar value={sortKey} dir={sortDir} onChange={applySort} />
           </div>
           {allSongs.length === 0 && (
             <EmptyState
               icon={<IconImport width={26} height={26} />}
-              title="Nenhuma música ainda"
-              description="Aponte para onde estão seus arquivos e importe. Tablaturas .gp e áudios ficam em pastas separadas."
+              title={str.setlist.noSongs}
+              description={str.setlist.noSongsBody}
               action={
                 <div className="flex flex-wrap justify-center gap-2">
                   <NeuButton variant="accent" onClick={runImport} disabled={importing}>
-                    Importar
+                    {str.setlist.import}
                   </NeuButton>
-                  <NeuButton onClick={() => go({ name: 'settings' })}>Escolher pastas</NeuButton>
+                  <NeuButton onClick={() => go({ name: 'settings' })}>{str.setlist.chooseFolders}</NeuButton>
                 </div>
               }
             />
@@ -749,7 +750,7 @@ export function SetlistScreen(): ReactNode {
                     icon={<IconWave width={12} height={12} />}
                     onClick={() => setSourcesSong(song)}
                   />
-                  <Badge tone={statusTone(song.status)}>{STATUS_LABEL[song.status]}</Badge>
+                  <Badge tone={statusTone(song.status)}>{str.labels.status[song.status]}</Badge>
                   <NeuButton
                     className="gradient-text !h-8 !w-8 !px-0 !py-0 !text-lg !font-bold"
                     title="Adicionar a um setlist"

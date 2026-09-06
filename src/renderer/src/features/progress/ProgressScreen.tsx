@@ -26,7 +26,8 @@ import { Modal } from '../setlist/SetlistDialogs'
 import { api, isError } from '../../lib/api'
 import { useNav } from '../../App'
 import type { DailyQueueItem, QueuePinView, SongView } from '@shared/types'
-import { STATUS_LABEL, INSTRUMENT_LABEL } from '@shared/types'
+import { useStrings } from '../../lib/i18n'
+
 
 /**
  * Put a song on today's list by hand.
@@ -43,6 +44,7 @@ function AddToQueueDialog({
   onAdded: () => void | Promise<void>
   onClose: () => void
 }): ReactNode {
+  const str = useStrings()
   const [songs, setSongs] = useState<SongView[]>([])
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
@@ -82,7 +84,7 @@ function AddToQueueDialog({
               <div className="text-txt-micro truncate text-[11px]">{s.artist ?? '—'}</div>
             </div>
             <Badge tone={s.status === 'gig_ready' ? 'ok' : 'neutral'}>
-              {STATUS_LABEL[s.status]}
+              {str.labels.status[s.status]}
             </Badge>
             <NeuButton
               className="!px-3 !py-1.5 !text-[11px]"
@@ -168,6 +170,7 @@ function QueueCard({
   item: DailyQueueItem
   onUnpin: () => void
 }): ReactNode {
+  const str = useStrings()
   const go = useNav((s) => s.go)
   const Icon = INSTRUMENT_ICON[item.instrument]
   return (
@@ -190,7 +193,7 @@ function QueueCard({
         <div className="flex shrink-0 items-center gap-2">
           {item.pinned && <Badge tone="accent">★ na fila</Badge>}
           <Badge tone={item.status === 'shaky' ? 'warn' : 'neutral'}>
-            {STATUS_LABEL[item.status]}
+            {str.labels.status[item.status]}
           </Badge>
           <Badge>
             <IconClock width={11} height={11} /> {item.estimatedMinutes}min
@@ -219,6 +222,7 @@ function QueueCard({
 }
 
 export function ProgressScreen(): ReactNode {
+  const str = useStrings()
   const { toast, show, clear } = useToast()
   const [budget, setBudget] = useState(30)
   const [queue, setQueue] = useState<DailyQueueItem[]>([])
@@ -403,7 +407,7 @@ export function ProgressScreen(): ReactNode {
             {Object.entries(
               stats.bpmProgress.reduce<Record<string, Array<{ day: string; bpm: number }>>>(
                 (acc, row) => {
-                  const key = `${row.song} · ${INSTRUMENT_LABEL[row.instrument as 'guitar']}`
+                  const key = `${row.song} · ${str.labels.instrument[row.instrument as 'guitar']}`
                   ;(acc[key] ??= []).push({ day: row.day, bpm: row.bpm })
                   return acc
                 },

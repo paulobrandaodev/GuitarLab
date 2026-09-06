@@ -14,10 +14,10 @@ import {
   normalizePlan,
   normalizePatch,
   noteToMidi,
-  buildTonePrompt,
   buildToneContext
 } from '../src/main/services/tone'
-import { RIG_DEFAULT } from '../src/shared/types'
+import { tonePatchPrompt } from '../src/main/services/prompts'
+import { RIG_DEFAULT, RIG_OUTPUT_EN } from '../src/shared/types'
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -168,14 +168,24 @@ const context = buildToneContext(
 check('o contexto leva os trechos da música', /Intro, Riff, Clean, Solo/.test(context))
 check('e a afinação do disco', /Eb Standard/.test(context))
 
-const prompt = buildTonePrompt(context, RIG_DEFAULT, ebStandard)
+/*
+ * The prompt scaffolding is fixed English — see services/prompts.ts for why.
+ * Only the output directive follows the interface language, and that is
+ * covered in test-llm.ts, which has all three catalogues to compare.
+ */
+const output = RIG_OUTPUT_EN[RIG_DEFAULT.output].toLowerCase()
+const prompt = tonePatchPrompt(context, output, ebStandard)
 check('manda usar o CTRL', /CTRL/.test(prompt))
 check('explica o pitch shifter', /PITCH SHIFTER/.test(prompt) && /-1/.test(prompt))
-check('pede patches separados por trecho', /appliesTo/.test(prompt) && /máximo 4/.test(prompt))
+check(
+  'pede patches separados por trecho',
+  /appliesTo/.test(prompt) && /at most 4/.test(prompt)
+)
 check('pede JSON com lista de patches', /"patches":\[/.test(prompt))
+check('diz para onde a saida vai', prompt.includes(output))
 
-const promptNoPitch = buildTonePrompt(context, RIG_DEFAULT, eStandard)
-check('sem PS o prompt diz que não precisa', /NÃO precisa de pitch shifter/.test(promptNoPitch))
+const promptNoPitch = tonePatchPrompt(context, output, eStandard)
+check('sem PS o prompt diz que não precisa', /NO pitch shifter/.test(promptNoPitch))
 
 console.log(`\n${failures === 0 ? 'TIMBRE OK' : `${failures} VERIFICACAO(OES) FALHARAM`}`)
 process.exit(failures === 0 ? 0 : 1)

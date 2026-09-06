@@ -13,10 +13,11 @@ import {
   normalizePatch,
   normalizePlan,
   planPitchShifter,
-  buildToneContext,
-  buildTonePrompt,
-  TONE_SYSTEM_PROMPT
+  buildToneContext
 } from '../src/main/services/tone'
+import { tonePatchPrompt, tonePatchSystemPrompt } from '../src/main/services/prompts'
+import { LOCALES, LOCALE_PROMPT_NAMES } from '../src/shared/i18n'
+import { RIG_OUTPUT_EN } from '../src/shared/types'
 import { parseJsonLoose } from '../src/main/services/llm/pure'
 import { RIG_DEFAULT, type TonePatchView } from '../src/shared/types'
 
@@ -199,14 +200,68 @@ async function main(): Promise<void> {
   console.log('\n=== 3. prompt ===')
   const pitch = planPitchShifter(SONG.tuning)
   const context = buildToneContext(SONG, RIG_DEFAULT, SONG.sections)
-  const prompt = buildTonePrompt(context, RIG_DEFAULT, pitch)
+  const output = RIG_OUTPUT_EN[RIG_DEFAULT.output].toLowerCase()
+  const prompt = tonePatchPrompt(context, output, pitch)
   check('contexto cita a guitarra do rig', context.includes(RIG_DEFAULT.guitar))
   check('contexto cita a pedaleira', context.includes(RIG_DEFAULT.processor))
   check('contexto cita a afinacao', context.includes('Eb Standard'))
   check('contexto lista os trechos', context.includes('Trecho limpo'))
-  check('prompt pede saida direta', prompt.toLowerCase().includes('pa / mesa de som'))
+  check('prompt pede saida direta', prompt.toLowerCase().includes('pa / mixing desk'))
   check('prompt manda usar o CTRL', prompt.includes('CTRL'))
   check('prompt resolve a afinacao com pitch shifter', pitch.enabled && pitch.semitones === -1)
+
+  /*
+   * The prompt scaffolding is fixed English; only the output directive changes
+   * per language. These three checks are what keeps that split honest, because
+   * the failure mode is silent: a translated schema still returns JSON, just
+   * with field names the app cannot read.
+   */
+  /*
+   * The song's own data is the user's content and may be in any language;
+   * only the labels around it are scaffolding. So each line is cut at its
+   * colon and only the label half is checked for being plain ASCII.
+   */
+  const scaffoldOnly = context
+    .split('\n')
+    .map((line) => line.split(':')[0])
+    .join(' | ')
+  check(
+    'o contexto nao emite rotulo nao-ASCII',
+    !/[^\x20-\x7E]/.test(scaffoldOnly),
+    scaffoldOnly
+  )
+
+  const SCHEMA = '{"patches":[{"patchName":"","appliesTo":"","summary":""'
+  const systemPrompts = LOCALES.map((l) => tonePatchSystemPrompt(l))
+  check(
+    'o schema JSON e identico nos tres idiomas',
+    LOCALES.every(() => prompt.includes(SCHEMA)),
+    'o formato exigido nao pode variar com o idioma'
+  )
+  check(
+    'cada idioma pede a si mesmo na saida',
+    LOCALES.every((l, i) => systemPrompts[i].includes(`in ${LOCALE_PROMPT_NAMES[l]}`)),
+    LOCALES.join(', ')
+  )
+  /*
+   * "English" legitimately appears twice in the English prompt — once as the
+   * output directive and once in the fixed instruction to leave device labels
+   * alone — so counting occurrences proves nothing. What matters is that a
+   * prompt never names a language other than its own.
+   */
+  check(
+    'nenhum prompt pede um idioma que nao e o dele',
+    LOCALES.every((l, i) =>
+      LOCALES.filter((other) => other !== l && other !== 'en').every(
+        (other) => !systemPrompts[i].includes(LOCALE_PROMPT_NAMES[other])
+      )
+    )
+  )
+  check(
+    'o prompt manda preservar os rotulos do aparelho',
+    systemPrompts.every((t) => /never translate a control or a block name/i.test(t)),
+    'sem isso, "responda em espanhol" renomeia PREAMP'
+  )
 
   console.log('\n=== 4. provedores ao vivo ===')
   // same order the app tries them in (LLM_PROVIDER then LLM_FALLBACK_PROVIDER)
@@ -220,7 +275,7 @@ async function main(): Promise<void> {
     console.log(`\n--- ${name} ---`)
     try {
       const t0 = Date.now()
-      const text = await call(prompt, TONE_SYSTEM_PROMPT)
+      const text = await call(prompt, tonePatchSystemPrompt('pt-BR'))
       const parsed = parseJsonLoose<Record<string, unknown>>(text)
       check(
         `${name}: devolveu JSON parseavel`,

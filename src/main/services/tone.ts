@@ -7,7 +7,7 @@ import type {
   CtrlAssignment,
   PitchShifterPlan
 } from '@shared/types'
-import { OUTPUT_LABEL } from '@shared/types'
+import { RIG_OUTPUT_EN } from '@shared/types'
 
 /**
  * Tone-patch plumbing, kept out of the IPC layer so it can be exercised without
@@ -93,7 +93,7 @@ export function normalizePatch(
     // a model that skipped the chain still gets a usable diagram from the blocks
     chain: chain.length
       ? chain
-      : [rig.guitar, ...blocks.map((b) => b.slot), OUTPUT_LABEL[rig.output]],
+      : [rig.guitar, ...blocks.map((b) => b.slot), RIG_OUTPUT_EN[rig.output]],
     blocks,
     ctrl: normalizeCtrl((raw as { ctrl?: unknown }).ctrl),
     listenFor: String(raw.listenFor ?? '').trim(),
@@ -132,7 +132,15 @@ export function normalizePlan(
 
 /* -------------------------------------------------------------- prompts */
 
-/** Everything the model needs to know about the song and the rig. */
+/**
+ * Everything the model needs to know about the song and the rig.
+ *
+ * The labels are English on purpose. They are prompt scaffolding, read by the
+ * model and never by the user, and these models follow a schema measurably
+ * better in English. What the user sees comes from the string catalogue; what
+ * the model reads is fixed. The values themselves — title, artist, section
+ * names — are the user's own content and are passed through untouched.
+ */
 export function buildToneContext(
   song: {
     title: string
@@ -146,63 +154,26 @@ export function buildToneContext(
   sections: string[] = []
 ): string {
   return [
-    `Música: ${song.title}${song.artist ? ` — ${song.artist}` : ''}`,
-    song.genre ? `Gênero: ${song.genre}` : null,
-    song.musicalKey ? `Tom: ${song.musicalKey}` : null,
-    song.bpm ? `Andamento: ${Math.round(song.bpm)} BPM` : null,
-    song.tuning ? `Afinação do disco: ${song.tuning.name} (${song.tuning.strings.join(' ')})` : null,
-    sections.length ? `Trechos do arquivo Guitar Pro: ${sections.join(', ')}` : null,
-    `Guitarra: ${rig.guitar}`,
-    `Pedaleira/processador: ${rig.processor}`,
-    `Saída: ${OUTPUT_LABEL[rig.output]} (som direto, sem amplificador na sala)`
+    `Song: ${song.title}${song.artist ? ` — ${song.artist}` : ''}`,
+    song.genre ? `Genre: ${song.genre}` : null,
+    song.musicalKey ? `Key: ${song.musicalKey}` : null,
+    song.bpm ? `Tempo: ${Math.round(song.bpm)} BPM` : null,
+    song.tuning
+      ? `Tuning on the record: ${song.tuning.name} (${song.tuning.strings.join(' ')})`
+      : null,
+    sections.length ? `Sections from the Guitar Pro file: ${sections.join(', ')}` : null,
+    `Guitar: ${rig.guitar}`,
+    `Multi-effects unit: ${rig.processor}`,
+    `Output: ${RIG_OUTPUT_EN[rig.output]} (direct signal, no amp in the room)`
   ]
     .filter(Boolean)
     .join('\n')
 }
 
-export const TONE_SYSTEM_PROMPT =
-  'Você é um técnico de guitarra especialista em pedaleiras multiefeito. Conhece a ' +
-  'ordem de blocos e a nomenclatura real de cada aparelho. Responda SOMENTE JSON ' +
-  'válido, sem comentários e sem cercas de código. Textos em português do Brasil.'
+/*
+ * The prompts themselves live in services/prompts.ts, where the split between
+ * fixed English scaffolding and the per-language output directive is explained.
+ * Re-exported here so the existing call sites and tests keep working.
+ */
+export { tonePatchSystemPrompt, tonePatchPrompt } from './prompts'
 
-export function buildTonePrompt(
-  context: string,
-  rig: RigView,
-  pitch: PitchShifterPlan
-): string {
-  const pitchLine = pitch.enabled
-    ? `A guitarra fica em ${pitch.playedTuning} e o bloco PITCH SHIFTER (PS) desloca ` +
-      `${pitch.semitones} semitom(ns) para bater com o disco (${pitch.recordTuning}). ` +
-      'Inclua esse bloco em TODOS os patches, com Mix/Balance em 100% (só o som deslocado), ' +
-      'e conte esse ajuste no "notes" do primeiro patch.'
-    : `A guitarra fica em ${pitch.playedTuning} e NÃO precisa de pitch shifter nessa música.`
-
-  return (
-    `${context}\n\n` +
-    `Monte os patches para tocar essa música nessa pedaleira, saindo direto para ` +
-    `${OUTPUT_LABEL[rig.output].toLowerCase()} — inclua simulação de gabinete/cabinet e ` +
-    `ajuste o brilho pensando em som direto, que costuma sair mais áspero que num amp.\n\n` +
-    `AFINAÇÃO. ${pitchLine}\n\n` +
-    'DIVISÃO EM PATCHES. Se a música muda de timbre de forma marcante — limpo no verso e ' +
-    'distorcido no refrão, um solo que pede mais ganho e delay — devolva um patch para cada ' +
-    'timbre, no máximo 4, em ordem cronológica. Em "appliesTo" diga em que parte da música ' +
-    'cada um entra, usando os nomes dos trechos quando eles existirem. Se o timbre é um só do ' +
-    'começo ao fim, devolva um único patch e não invente divisões.\n\n' +
-    'BOTÃO CTRL. A pedaleira tem UM footswitch atribuível (CTRL) além do banco de patches. ' +
-    'Em "ctrl" diga o que vale colocar nele NESSE patch — wah, whammy, boost de solo, ' +
-    'delay, ligar/desligar um bloco — com o que um toque faz e em que momento da música se ' +
-    'usa. Se naquele patch não houver nada que justifique, devolva "ctrl": null.\n\n' +
-    'Use no máximo 6 blocos por patch, na ordem real da cadeia do aparelho. Em "params" use no ' +
-    'máximo 4 controles por bloco: "value" é a posição do knob de 0 a 100, ou null ' +
-    'quando o controle é uma escolha e não um knob (nesse caso preencha "text"). ' +
-    'Em "chain" liste os rótulos curtos do caminho do sinal, começando pela guitarra e ' +
-    'terminando na saída.\n\n' +
-    'Formato exato:\n' +
-    '{"patches":[{"patchName":"","appliesTo":"","summary":"",' +
-    '"chain":["Guitarra","COMP","OD","PREAMP","PA"],' +
-    '"blocks":[{"slot":"PREAMP","model":"","enabled":true,' +
-    '"params":[{"label":"Gain","value":70,"text":null}],"note":""}],' +
-    '"ctrl":{"target":"WAH","action":"","when":""},' +
-    '"listenFor":"","notes":""}]}'
-  )
-}

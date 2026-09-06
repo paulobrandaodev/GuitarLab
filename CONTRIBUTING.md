@@ -69,6 +69,9 @@ them boot a real Electron instance and drive the real app.
 npm test               # typecheck + the whole battery
 npm run typecheck      # fastest useful check while working
 
+npm run test:i18n      # catalogues in step, no lost interpolation, no raw Portuguese
+npm run test:settings  # settings precedence, secret redaction, IPC guards
+npm run test:secrets   # encryption at rest, against the real OS keystore
 npm run test:setlist   # setlists, bands, playlist sync, title cleanup
 npm run test:sources   # Ultimate Guitar links, ranking, live archive.org search
 npm run test:chords    # transposition, chord track parsing, lab JSON validation
@@ -92,6 +95,44 @@ that `ELECTRON_RUN_AS_NODE` is not set in your shell:
 Add a test when you change behaviour that is easy to break silently — anything
 involving timing, tuning maths, or parsing a real file format. The existing
 tests are the model: assert against real files and real output, not mocks.
+
+## Translations
+
+The interface speaks English, Brazilian Portuguese and Spanish. Strings live in
+`src/shared/i18n/`, with `pt-BR.ts` as the source of truth — every string in
+this codebase started there, so it leads and the others follow.
+
+**Never type a user-facing string straight into a component.** Add it to
+`pt-BR.ts`, then to `en.ts` and `es.ts`. Those two are declared `: Catalog`, so
+the compiler tells you exactly what is missing — `npm run typecheck` is the
+whole sync mechanism, and there is no extraction tooling to run.
+
+Entries that interpolate are functions, not templates with placeholders:
+
+```ts
+// pt-BR.ts
+songCount: (n: number) => `${n} ${plural(n, 'música', 'músicas')}`
+```
+
+That way the compiler checks the arguments too, and a translator who drops the
+`${n}` is caught by `npm run test:i18n`, which calls every function entry in
+every language with sentinel arguments. That test also refuses to let the count
+of raw Portuguese in `.tsx` files grow, so migrating a screen lowers it and
+adding an untranslated string fails the build.
+
+Most screens have **not** been migrated yet: the plumbing is complete and the
+shared labels are done, but the bulk of the interface is still Portuguese-only.
+Migrating one screen at a time is a genuinely useful contribution, and each one
+is self-contained.
+
+Two things stay out of the catalogue on purpose:
+
+- **Console logs and stack traces**, which are permanently English. They are
+  read by whoever is debugging, and a Portuguese stack trace pasted into an
+  issue here helps nobody.
+- **Prompt scaffolding and anything persisted**, such as the signal chain stored
+  in a tone patch. Those are data, not interface. Translating them would make a
+  patch generated in Spanish show Spanish labels to a Portuguese reader.
 
 ## Pull requests
 

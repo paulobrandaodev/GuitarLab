@@ -4,6 +4,7 @@ import { IconButton, Toast, useToast, cx } from './components/ui'
 import { AiActivityBar } from './components/AiActivityBar'
 import { SetupBanner } from './components/SetupBanner'
 import { connectAiActivity } from './lib/aiActivity'
+import { useLocaleStore } from './lib/i18n'
 import {
   IconSetlist,
   IconPractice,
@@ -179,14 +180,31 @@ export default function App(): ReactNode {
   const { route, back, history, go } = useNav()
   const { toast, clear } = useToast()
   const [booted, setBooted] = useState(false)
+  const setLocale = useLocaleStore((st) => st.setLocale)
 
   useEffect(() => {
-    // touch the DB once up front so a broken install surfaces immediately
-    void window.api.songs
-      .list()
-      .catch((e) => console.error('Falha ao ler o banco:', e))
+    /*
+     * Touch the DB once up front so a broken install surfaces immediately, and
+     * pick up the language while we are here. The locale store already holds a
+     * synchronous guess from localStorage, so nothing renders untranslated
+     * while this is in flight; this is the authoritative answer arriving.
+     */
+    /*
+     * Called through a lambda rather than passed directly, so a bridge that is
+     * missing a channel rejects the promise instead of throwing synchronously
+     * and taking the whole mount down with it. The test harness supplies a
+     * partial bridge, and so would a preload that failed halfway.
+     */
+    void Promise.allSettled([
+      (async () => window.api.songs.list())(),
+      (async () => window.api.settings.get())()
+    ])
+      .then(([songs, settings]) => {
+        if (songs.status === 'rejected') console.error('Could not read the database:', songs.reason)
+        if (settings.status === 'fulfilled') setLocale(settings.value.locale)
+      })
       .finally(() => setBooted(true))
-  }, [])
+  }, [setLocale])
 
   // one subscription for the whole app: every AI call reports through it
   useEffect(() => connectAiActivity(), [])

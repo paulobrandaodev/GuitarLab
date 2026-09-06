@@ -35,6 +35,15 @@ function parseLrc(lrc) {
 }
 
 contextBridge.exposeInMainWorld('api', {
+  settings: {
+    get: async () => ({
+      settings: [],
+      encryption: { available: true, hint: '' },
+      locale: 'pt-BR'
+    }),
+    set: async () => ({ ok: true, changed: [] }),
+    testProvider: async () => ({ ok: false, detail: 'stub' })
+  },
   library: {
     importAll: none,
     importGuitarPro: none,
