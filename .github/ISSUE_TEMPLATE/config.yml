@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or idea
+    url: https://github.com/paulobrandaodev/GuitarLab/discussions
+    about: For anything that is not a bug report — setup help, ideas, showing off your setlist.
+  - name: Security vulnerability
+    url: https://github.com/paulobrandaodev/GuitarLab/security/advisories/new
+    about: Please report security problems privately, not as a public issue.

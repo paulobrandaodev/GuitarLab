@@ -1,0 +1,78 @@
+name: Bug report
+description: Something in the app does not work the way it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please write in English, Portuguese or Spanish —
+        whichever you are comfortable with.
+
+        **Do not attach copyrighted audio or tablature files.** If a specific
+        file triggers the bug, describe it (format, source, what is unusual
+        about it) instead of uploading it.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Import a .gp5 file with …
+        2. Open Estudar → Stems
+        3. Drag the A–B loop over …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How are you running GuitarLab?
+      options:
+        - Installer (.exe)
+        - Portable build
+        - AppImage / .deb
+        - From source (npm run dev)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown in Settings, or the release you downloaded.
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "Windows 11 24H2 / Ubuntu 24.04 / macOS 15"
+    validations:
+      required: true
+
+  - type: textarea
+    id: area
+    attributes:
+      label: Which part of the app?
+      description: |
+        Setlist, Guitar Pro view, stems player, tuner, lab container, AI
+        features, import… If it involves an integration, say whether it is
+        configured.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output
+      description: |
+        From the terminal if you run from source, or the DevTools console.
+        **Redact any API keys before pasting.**
+      render: shell

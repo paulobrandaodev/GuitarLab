@@ -1,0 +1,72 @@
+GuitarLab
+Copyright (c) 2026 Paulo Brandão
+
+This product includes third-party software. GuitarLab itself is MIT-licensed
+(see LICENSE); the components below keep their own terms.
+
+--------------------------------------------------------------------------------
+Mozilla Public License 2.0 (file-level copyleft)
+--------------------------------------------------------------------------------
+
+  alphaTab — https://github.com/CoderLine/alphaTab
+  Copyright (c) Daniel Kuschny and contributors
+  Used unmodified as an npm dependency (@coderline/alphatab).
+
+  SoundTouchJS AudioWorklet — https://github.com/cutterbl/SoundTouchJS
+  Copyright (c) Cutter Blades and contributors
+  Used unmodified as an npm dependency (@soundtouchjs/audio-worklet).
+
+  MPL-2.0 is per-file copyleft and is compatible with an MIT project as long as
+  these sources are not modified. If a file from either project is ever patched
+  in this repository, that file stays MPL-2.0 and the modification must be
+  published. Full text: https://mozilla.org/MPL/2.0/
+
+--------------------------------------------------------------------------------
+Apache License 2.0
+--------------------------------------------------------------------------------
+
+  Drizzle ORM — https://github.com/drizzle-team/drizzle-orm
+  basic-pitch (audio-to-MIDI, used inside the optional lab container)
+  Copyright (c) Spotify AB
+
+--------------------------------------------------------------------------------
+SIL Open Font License 1.1
+--------------------------------------------------------------------------------
+
+  Bravura — https://github.com/steinbergmedia/bravura
+  Copyright (c) Steinberg Media Technologies GmbH
+  Bundled at src/renderer/public/font/. The OFL text and FONTLOG ship alongside
+  it. "Bravura" is a Reserved Font Name: a modified version must be renamed.
+
+--------------------------------------------------------------------------------
+Public domain / other
+--------------------------------------------------------------------------------
+
+  SQLite — public domain, reached through better-sqlite3 (MIT).
+
+  Inside the optional lab container, which you build yourself:
+  faster-whisper (MIT), librosa (ISC), PyTorch (BSD-3-Clause), soundfile (BSD-3).
+
+  Demucs is pinned to 4.0.1 (see lab/requirements.txt), which is MIT-licensed —
+  code and pretrained weights alike. The pin matters: Demucs v2 shipped under
+  CC-BY-NC 4.0, which forbids commercial use. Do not relax it backwards.
+
+--------------------------------------------------------------------------------
+FFmpeg — a deliberate packaging decision
+--------------------------------------------------------------------------------
+
+  GuitarLab does NOT bundle an FFmpeg binary. It invokes whichever `ffmpeg` and
+  `ffprobe` are on your PATH as separate processes (see src/main/media/ffmpeg.ts
+  and the FFMPEG_PATH setting).
+
+  This is intentional. Calling a program over its command line does not create a
+  derivative work, so FFmpeg's GPL/LGPL terms do not reach this MIT codebase.
+  Most prebuilt FFmpeg distributions (gyan.dev, BtbN) are compiled with
+  --enable-gpl. Shipping one inside the installer would turn a clean separation
+  into a "mere aggregation vs. combined work" argument.
+
+  Do not add an FFmpeg binary to the installer or to this repository.
+
+  Note: dist/win-unpacked/ffmpeg.dll is a different thing entirely — it is
+  Chromium's restricted LGPL build, supplied by Electron and covered by
+  Electron's own license.
