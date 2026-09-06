@@ -1,4 +1,4 @@
-# CUDA base so Demucs and faster-whisper use the RTX 4060 instead of the CPU.
+# CUDA base so Demucs and faster-whisper run on the GPU instead of the CPU.
 FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
 
 ENV PYTHONUNBUFFERED=1 \

@@ -18,9 +18,9 @@ const REAL_DB = join(homedir(), 'AppData/Roaming/setlist-lab/setlist-lab.db')
 const TMP_DB = join(homedir(), 'AppData/Local/Temp/setlist-lab-test.db')
 
 const MOUNTS = [
-  { container: '/data/stems', host: 'F:/Documentos/Guitarra/SetList/.stems' },
-  { container: '/data/songs', host: 'F:/Documentos/Guitarra/SetList/songs' },
-  { container: '/data/gptabs', host: 'F:/Documentos/Guitarra/SetList/gptabs' }
+  { container: '/data/stems', host: 'X:/GuitarLab/.stems' },
+  { container: '/data/songs', host: 'X:/GuitarLab/songs' },
+  { container: '/data/gptabs', host: 'X:/GuitarLab/gptabs' }
 ]
 
 let failures = 0
@@ -33,20 +33,20 @@ console.log('=== 1. translateContainerPath ===')
 check(
   'traduz caminho de stem do container',
   translateContainerPath('/data/stems/Song/htdemucs/Song/guitar.flac', MOUNTS) ===
-    'F:/Documentos/Guitarra/SetList/.stems/Song/htdemucs/Song/guitar.flac'
+    'X:/GuitarLab/.stems/Song/htdemucs/Song/guitar.flac'
 )
 check(
   'traduz caminho de audio do container',
   translateContainerPath('/data/songs/a.mp3', MOUNTS) ===
-    'F:/Documentos/Guitarra/SetList/songs/a.mp3'
+    'X:/GuitarLab/songs/a.mp3'
 )
 check(
   'caminho do Windows fica intacto',
-  translateContainerPath('F:/Documentos/x.flac', MOUNTS) === null
+  translateContainerPath('X:/other/x.flac', MOUNTS) === null
 )
 check(
   'caminho do Windows com barra invertida fica intacto',
-  translateContainerPath('F:\\Documentos\\x.flac', MOUNTS) === null
+  translateContainerPath('X:\\other\\x.flac', MOUNTS) === null
 )
 check('caminho UNC fica intacto', translateContainerPath('//servidor/share/x.flac', MOUNTS) === null)
 check(
@@ -56,7 +56,7 @@ check(
 check(
   'espacos e parenteses sobrevivem',
   translateContainerPath('/data/stems/02 The Trooper (Album)/bass.flac', MOUNTS) ===
-    'F:/Documentos/Guitarra/SetList/.stems/02 The Trooper (Album)/bass.flac'
+    'X:/GuitarLab/.stems/02 The Trooper (Album)/bass.flac'
 )
 
 console.log('\n=== 2. reparo sobre uma copia do banco real ===')

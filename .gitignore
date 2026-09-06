@@ -8,7 +8,8 @@ dist/
 *.db-shm
 .env
 .env.bak
-lab/__pycache__/
+__pycache__/
+*.pyc
 lab/models/
 
 # áudio e tablaturas são a biblioteca local do usuário, não código
