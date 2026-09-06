@@ -144,7 +144,7 @@ export async function connect(): Promise<{ ok: boolean; error?: string }> {
           expiresAt: Math.floor(Date.now() / 1000) + data.expires_in,
           scopes: data.scope ?? null
         })
-        finish(true, 'Spotify conectado', 'Pode fechar esta aba e voltar pro Setlist Lab.')
+        finish(true, 'Spotify conectado', 'Pode fechar esta aba e voltar pro GuitarLab.')
       } catch (err) {
         finish(false, 'Erro', err instanceof Error ? err.message : String(err))
       }
@@ -493,7 +493,7 @@ export async function syncSetlistPlaylist(
       body: JSON.stringify({
         name,
         public: false,
-        description: 'Sincronizado pelo Setlist Lab'
+        description: 'Sincronizado pelo GuitarLab'
       })
     })
     if ('error' in created) return created

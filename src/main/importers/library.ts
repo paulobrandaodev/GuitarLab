@@ -7,6 +7,7 @@ import { parseGuitarProFile } from './guitarpro'
 import { classifySection } from './guitarpro'
 import { matchSong, cleanTitle, type MatchCandidate } from './matcher'
 import { probeAudio, measureLoudness, generateWaveformPeaks, ffmpegAvailable } from '../media/ffmpeg'
+import { PRACTICE_INSTRUMENT } from '@shared/types'
 import type { ImportReport, Instrument } from '@shared/types'
 
 const GP_EXT = new Set(['.gp3', '.gp4', '.gp5', '.gpx', '.gp', '.gp7'])
@@ -286,10 +287,13 @@ async function ingestGuitarProFile(
       })
       .run()
 
-    const instruments = [
-      ...new Set(parsed.tracks.map((t) => t.instrument).filter(Boolean))
-    ] as Instrument[]
-    ensureProgressRows(songId, instruments.length ? instruments : ['guitar'])
+    /*
+     * One progress row, for the guitar. The file usually carries bass, drums and
+     * a vocal line too, and opening a row per track is what made a song sit at
+     * 30% mastery while its guitar part was already solid — the untouched drum
+     * row was averaged into the ring.
+     */
+    ensureProgressRows(songId, [PRACTICE_INSTRUMENT])
 
     report.details.push({
       file,
@@ -425,7 +429,7 @@ async function ingestAudioFile(
       /* waveform is a nicety, never fail the import over it */
     }
 
-    ensureProgressRows(songId, ['guitar'])
+    ensureProgressRows(songId, [PRACTICE_INSTRUMENT])
 
     report.details.push({
       file,

@@ -12,6 +12,7 @@ import type {
   YoutubeRefView,
   AnalysisJobView,
   DailyQueueItem,
+  QueuePinView,
   ImportReport,
   IntegrationStatus,
   TuningView,
@@ -32,6 +33,10 @@ export interface Api {
     importGuitarPro: () => Promise<ImportReport>
     importAudio: () => Promise<ImportReport>
     paths: () => Promise<{ gptabs: string; songs: string; stems: string; db: string }>
+    /** Remembers the folders and restarts the app — they are read at startup. */
+    setPaths: (
+      next: Partial<Record<'gptabs' | 'songs' | 'stems', string>>
+    ) => Promise<{ ok: boolean }>
   }
   songs: {
     list: () => Promise<SongView[]>
@@ -76,6 +81,12 @@ export interface Api {
     ) => Promise<void>
     recordSession: (input: Record<string, unknown>) => Promise<void>
     dailyQueue: (budget: number) => Promise<DailyQueueItem[]>
+    /** Items the user pinned by hand, in the order they will be practised. */
+    queuePins: () => Promise<QueuePinView[]>
+    queued: (songId: number, sectionId: number | null) => Promise<boolean>
+    enqueue: (songId: number, sectionId: number | null) => Promise<void>
+    dequeue: (songId: number, sectionId: number | null) => Promise<void>
+    clearQueue: () => Promise<void>
     stats: () => Promise<{
       totals: Record<string, number>
       heatmap: Array<{ day: string; seconds: number; sessions: number }>
@@ -132,6 +143,12 @@ export interface Api {
       searchesLeft: number
     }>
     manualUrl: (songId: number, role: YoutubeRole) => Promise<string | null>
+    /**
+     * Local http origin that hosts the embeddable player, or null when it could
+     * not be started — see `services/ytplayer` for why app:// cannot embed
+     * YouTube directly.
+     */
+    playerUrl: () => Promise<string | null>
   }
   spotify: {
     status: () => Promise<{ configured: boolean; connected: boolean; detail: string }>

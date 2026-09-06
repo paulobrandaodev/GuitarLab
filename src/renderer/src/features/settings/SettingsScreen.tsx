@@ -12,6 +12,9 @@ import { IconSpotify, IconYoutube, IconSparkle, IconLab, IconWave } from '../../
 import { api } from '../../lib/api'
 import type { IntegrationStatus } from '@shared/types'
 
+/** The folders the user is allowed to move; the database stays with the app. */
+type LibraryFolder = 'gptabs' | 'songs' | 'stems'
+
 function Row({
   icon,
   title,
@@ -80,6 +83,14 @@ export function SettingsScreen(): ReactNode {
     } finally {
       setConnecting(false)
     }
+  }
+
+  /** Pick a folder and restart into it; the main process owns both halves. */
+  const changeFolder = async (key: LibraryFolder): Promise<void> => {
+    const picked = await api.shell.pickFolder()
+    if (!picked) return
+    show('Pasta salva — reiniciando o GuitarLab…', 'ok')
+    await api.library.setPaths({ [key]: picked })
   }
 
   if (!status) {
@@ -167,12 +178,14 @@ export function SettingsScreen(): ReactNode {
         <NeuCard className="p-4">
           <div className="micro-label mb-3">Pastas</div>
           <div className="space-y-2 text-xs">
-            {[
-              ['Guitar Pro', paths.gptabs],
-              ['Áudio', paths.songs],
-              ['Stems', paths.stems],
-              ['Banco de dados', paths.db]
-            ].map(([label, p]) => (
+            {(
+              [
+                ['Guitar Pro', paths.gptabs, 'gptabs'],
+                ['Áudio', paths.songs, 'songs'],
+                ['Stems', paths.stems, 'stems'],
+                ['Banco de dados', paths.db, null]
+              ] as Array<[string, string, LibraryFolder | null]>
+            ).map(([label, p, key]) => (
               <div key={label} className="flex items-center gap-3">
                 <span className="micro-label w-28 shrink-0">{label}</span>
                 <button
@@ -182,12 +195,21 @@ export function SettingsScreen(): ReactNode {
                 >
                   {p}
                 </button>
+                {key && (
+                  <NeuButton
+                    className="!px-2.5 !py-1 !text-[10px]"
+                    onClick={() => void changeFolder(key)}
+                  >
+                    alterar
+                  </NeuButton>
+                )}
               </div>
             ))}
           </div>
-          <p className="text-txt-micro mt-3 text-[11px]">
-            Configure esses caminhos no arquivo <code className="font-mono">.env</code> na raiz do
-            projeto.
+          <p className="text-txt-micro mt-3 text-[11px] leading-snug">
+            Trocar uma pasta reinicia o GuitarLab — os caminhos são lidos uma vez, na abertura. As
+            músicas já importadas continuam apontando para os arquivos onde estão. Também dá para
+            fixar tudo pelo <code className="font-mono">.env</code> na raiz do projeto.
           </p>
         </NeuCard>
       )}

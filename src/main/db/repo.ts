@@ -3,6 +3,7 @@ import { getDb, getSqlite, schema } from './client'
 import { deleteSetlistRow, syncSetlistItems, type SyncResult } from './setlists'
 import { computeMastery, rollupMastery, setlistReadiness, statusFromMastery } from '../practice/readiness'
 import { buildDailyQueue, gradeFromSession, reviewSrs, type QueueCandidate } from '../practice/srs'
+import { PRACTICE_INSTRUMENT } from '@shared/types'
 import type {
   ChordMapView,
   DailyQueueItem,
@@ -65,8 +66,15 @@ function decorate(rows: SongRow[]): SongView[] {
 
   const progressRows = sqlite
     .prepare(
+      /*
+       * Guitar only. A Guitar Pro file carries every track in the band, and the
+       * importer used to open a progress row for each of them — so a song whose
+       * guitar was solid still showed 30% because the untouched drum and bass
+       * rows were averaged in. This app is for practising guitar; the other
+       * instruments are not part of the number on screen.
+       */
       `SELECT song_id, section_id, instrument, status, mastery, best_bpm, target_bpm, last_practiced_at
-       FROM progress WHERE song_id IN (${placeholders})`
+       FROM progress WHERE instrument = '${PRACTICE_INSTRUMENT}' AND song_id IN (${placeholders})`
     )
     .all(...ids) as Array<{
     song_id: number
@@ -366,7 +374,13 @@ export function listProgress(songId: number): ProgressView[] {
   const rows = getDb()
     .select()
     .from(schema.progress)
-    .where(eq(schema.progress.songId, songId))
+    // guitar only — see the note in `decorate`
+    .where(
+      and(
+        eq(schema.progress.songId, songId),
+        eq(schema.progress.instrument, PRACTICE_INSTRUMENT)
+      )
+    )
     .all()
   return rows.map((r) => ({
     id: r.id,
@@ -568,16 +582,23 @@ export function getDailyQueue(budgetMinutes = 30): DailyQueueItem[] {
          p.srs_due_at   AS dueAt,
          p.last_practiced_at AS lastPracticedAt,
          CASE WHEN si.id IS NOT NULL THEN 1 ELSE 0 END AS inActiveSetlist,
-         sl.event_date  AS eventDate
+         sl.event_date  AS eventDate,
+         CASE WHEN pq.id IS NOT NULL THEN 1 ELSE 0 END AS pinned
        FROM progress p
        JOIN songs s ON s.id = p.song_id
        LEFT JOIN artists a ON a.id = s.artist_id
        LEFT JOIN song_sections sec ON sec.id = p.section_id
        LEFT JOIN setlists sl ON sl.is_active = 1
        LEFT JOIN setlist_items si ON si.song_id = p.song_id AND si.setlist_id = sl.id
+       -- what the user put on the list by hand. IS rather than = so a
+       -- whole-song pin (section_id NULL) matches the whole-song progress row
+       LEFT JOIN practice_queue pq
+              ON pq.song_id = p.song_id AND pq.section_id IS p.section_id
        -- guitar only: a Guitar Pro file creates progress rows for every track it
        -- carries, and a drum row in the practice queue is noise for this user
-       WHERE p.instrument = 'guitar'`
+       WHERE p.instrument = '${PRACTICE_INSTRUMENT}'
+       -- pinned items keep the order they were added in; the rest is scored
+       ORDER BY pq.position, pq.id`
     )
     .all() as Array<Record<string, unknown>>
 
@@ -598,11 +619,103 @@ export function getDailyQueue(budgetMinutes = 30): DailyQueueItem[] {
       dueAt: (r.dueAt as number) ?? null,
       lastPracticedAt: (r.lastPracticedAt as number) ?? null,
       inActiveSetlist: r.inActiveSetlist === 1,
-      daysToShow: eventDate ? Math.ceil((eventDate - nowSec) / 86400) : null
+      daysToShow: eventDate ? Math.ceil((eventDate - nowSec) / 86400) : null,
+      pinned: r.pinned === 1
     }
   })
 
   return buildDailyQueue(candidates, budgetMinutes, nowSec)
+}
+
+/* ---------------------------------------------------------- queue pinning */
+
+/**
+ * Look up one pin. `sectionId` NULL means the whole song.
+ *
+ * SQLite treats NULLs as distinct inside a UNIQUE constraint, so the table
+ * cannot enforce "one pin per song" on its own — every write goes through this
+ * lookup instead.
+ */
+function findPin(songId: number, sectionId: number | null): { id: number } | undefined {
+  return getSqlite()
+    .prepare(
+      'SELECT id FROM practice_queue WHERE song_id = ? AND section_id IS ? LIMIT 1'
+    )
+    .get(songId, sectionId) as { id: number } | undefined
+}
+
+export function isQueued(songId: number, sectionId: number | null = null): boolean {
+  return Boolean(findPin(songId, sectionId))
+}
+
+/** Everything pinned, in the order it will be practised. */
+export function listQueuePins(): Array<{
+  songId: number
+  sectionId: number | null
+  songTitle: string
+  artist: string | null
+  sectionName: string | null
+  addedAt: number
+}> {
+  return getSqlite()
+    .prepare(
+      `SELECT pq.song_id AS songId, pq.section_id AS sectionId, s.title AS songTitle,
+              a.name AS artist, sec.name AS sectionName, pq.added_at AS addedAt
+         FROM practice_queue pq
+         JOIN songs s ON s.id = pq.song_id
+         LEFT JOIN artists a ON a.id = s.artist_id
+         LEFT JOIN song_sections sec ON sec.id = pq.section_id
+        ORDER BY pq.position, pq.id`
+    )
+    .all() as ReturnType<typeof listQueuePins>
+}
+
+/**
+ * Put a song or one of its sections on today's list.
+ *
+ * The daily queue is built from `progress`, so a section that was never given a
+ * status has no row to be found under and would be pinned into invisibility.
+ * Opening the row here is what makes "adicionar à fila" work on a song the user
+ * has never touched — which is exactly when they are most likely to use it.
+ */
+export function addToQueue(songId: number, sectionId: number | null = null): void {
+  const db = getDb()
+  if (findPin(songId, sectionId)) return
+
+  const existingProgress = db
+    .select()
+    .from(schema.progress)
+    .where(
+      and(
+        eq(schema.progress.songId, songId),
+        eq(schema.progress.instrument, PRACTICE_INSTRUMENT),
+        sectionId === null
+          ? isNull(schema.progress.sectionId)
+          : eq(schema.progress.sectionId, sectionId)
+      )
+    )
+    .get()
+  if (!existingProgress) {
+    db.insert(schema.progress)
+      .values({ songId, sectionId, instrument: PRACTICE_INSTRUMENT })
+      .run()
+  }
+
+  const last = getSqlite()
+    .prepare('SELECT COALESCE(MAX(position), -1) AS p FROM practice_queue')
+    .get() as { p: number }
+  db.insert(schema.practiceQueue).values({ songId, sectionId, position: last.p + 1 }).run()
+}
+
+export function removeFromQueue(songId: number, sectionId: number | null = null): void {
+  getSqlite()
+    .prepare('DELETE FROM practice_queue WHERE song_id = ? AND section_id IS ?')
+    .run(songId, sectionId)
+}
+
+/** Take everything off — the "limpar fila" button. */
+export function clearQueue(): void {
+  getSqlite().prepare('DELETE FROM practice_queue').run()
 }
 
 /* ------------------------------------------------------------ media / yt */
@@ -743,7 +856,7 @@ export function statsOverview() {
       `SELECT s.title AS song, ps.instrument, date(ps.started_at,'unixepoch') AS day,
               MAX(ps.bpm_achieved) AS bpm
        FROM practice_sessions ps JOIN songs s ON s.id = ps.song_id
-       WHERE ps.bpm_achieved IS NOT NULL
+       WHERE ps.bpm_achieved IS NOT NULL AND ps.instrument = '${PRACTICE_INSTRUMENT}'
        GROUP BY s.title, ps.instrument, day ORDER BY day`
     )
     .all() as Array<{ song: string; instrument: string; day: string; bpm: number }>

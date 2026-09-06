@@ -17,7 +17,8 @@ const api = {
     importAll: () => invoke('library:importAll'),
     importGuitarPro: () => invoke('library:importGuitarPro'),
     importAudio: () => invoke('library:importAudio'),
-    paths: () => invoke('library:paths')
+    paths: () => invoke('library:paths'),
+    setPaths: (next: Record<string, string>) => invoke('library:setPaths', next)
   },
   songs: {
     list: () => invoke('songs:list'),
@@ -56,6 +57,14 @@ const api = {
       invoke('progress:setTargetBpm', songId, instrument, sectionId, bpm),
     recordSession: (input: unknown) => invoke('progress:recordSession', input),
     dailyQueue: (budget: number) => invoke('progress:dailyQueue', budget),
+    queuePins: () => invoke('progress:queuePins'),
+    queued: (songId: number, sectionId: number | null) =>
+      invoke('progress:queued', songId, sectionId),
+    enqueue: (songId: number, sectionId: number | null) =>
+      invoke('progress:enqueue', songId, sectionId),
+    dequeue: (songId: number, sectionId: number | null) =>
+      invoke('progress:dequeue', songId, sectionId),
+    clearQueue: () => invoke('progress:clearQueue'),
     stats: () => invoke('progress:stats'),
     nextBpm: (current: number, target: number, step: number) =>
       invoke('progress:nextBpm', current, target, step)
@@ -89,6 +98,7 @@ const api = {
     setRole: (refId: number, role: string) => invoke('youtube:setRole', refId, role),
     remove: (refId: number) => invoke('youtube:delete', refId),
     quota: () => invoke('youtube:quota'),
+    playerUrl: () => invoke<string | null>('youtube:playerUrl'),
     manualUrl: (songId: number, role: string) => invoke('youtube:manualUrl', songId, role)
   },
   spotify: {

@@ -23,10 +23,30 @@ import { SettingsScreen } from './features/settings/SettingsScreen'
 import { TunerScreen } from './features/tuner/TunerScreen'
 import { StageScreen } from './features/stage/StageScreen'
 
+/**
+ * The rooms of one song. Everything about a song is reached through its own
+ * menu now, so a route only has to say which room to open in.
+ */
+export type SongTab =
+  | 'visao'
+  | 'estudar'
+  | 'stems'
+  | 'video'
+  | 'cifra'
+  | 'timbre'
+  | 'afinador'
+  | 'lab'
+  | 'dados'
+
 export type Route =
   | { name: 'setlist' }
-  | { name: 'song'; songId: number }
-  | { name: 'practice'; songId: number; sectionId?: number | null }
+  | { name: 'song'; songId: number; tab?: SongTab; sectionId?: number | null }
+  /*
+   * `practice` and `lab` are kept as routes because the bottom bar opens them
+   * without a song, where each shows its own picker. With a song they are rooms
+   * of the song hub, so they land there instead of on a screen of their own.
+   */
+  | { name: 'practice'; songId?: number; sectionId?: number | null }
   | { name: 'lab'; songId?: number }
   | { name: 'progress' }
   | { name: 'settings' }
@@ -68,7 +88,7 @@ function TitleBar({ onBack, canBack }: { onBack: () => void; canBack: boolean })
             <IconArrowLeft width={16} height={16} />
           </IconButton>
         )}
-        <span className="micro-label ml-1">Setlist Lab</span>
+        <span className="micro-label ml-1">GuitarLab</span>
       </div>
       <div className="no-drag flex items-center gap-2">
         <IconButton size={32} title="Afinador" onClick={() => go({ name: 'tuner' })}>
@@ -98,14 +118,8 @@ function BottomNav(): ReactNode {
             active={active}
             title={item.title}
             size={52}
-            onClick={() => {
-              if (item.name === 'practice' || item.name === 'lab') {
-                // these screens need a song; they show their own picker when none is set
-                go({ name: item.name } as Route)
-              } else {
-                go({ name: item.name } as Route)
-              }
-            }}
+            // practice and lab show their own picker when no song is set
+            onClick={() => go({ name: item.name } as Route)}
           >
             <Icon width={22} height={22} />
           </IconButton>
@@ -128,11 +142,25 @@ function Screen({ route }: { route: Route }): ReactNode {
     case 'setlist':
       return <SetlistScreen />
     case 'song':
-      return <SongScreen songId={route.songId} />
+      return (
+        <SongScreen
+          songId={route.songId}
+          tab={route.tab}
+          sectionId={route.sectionId ?? null}
+        />
+      )
     case 'practice':
-      return <PracticeScreen songId={route.songId} sectionId={route.sectionId ?? null} />
+      return route.songId ? (
+        <SongScreen songId={route.songId} tab="estudar" sectionId={route.sectionId ?? null} />
+      ) : (
+        <PracticeScreen />
+      )
     case 'lab':
-      return <LabScreen songId={route.songId} />
+      return route.songId ? (
+        <SongScreen songId={route.songId} tab="lab" />
+      ) : (
+        <LabScreen />
+      )
     case 'progress':
       return <ProgressScreen />
     case 'settings':

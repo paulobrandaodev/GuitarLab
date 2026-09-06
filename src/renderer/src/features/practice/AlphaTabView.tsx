@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useImperativeHandle, forwardRef, type ReactNode } from 'react'
 import * as alphaTab from '@coderline/alphatab'
 import soundFontUrl from '@coderline/alphatab/soundfont/sonivox.sf3?url'
+import { loadScoreRecovering } from '@shared/gp'
 import { Spinner } from '../../components/ui'
 
 export interface AlphaTabTrack {
@@ -238,6 +239,56 @@ export const AlphaTabView = forwardRef<AlphaTabHandle, Props>(function AlphaTabV
     settings.display.resources.barNumberColor = new alphaTab.model.Color(255, 138, 92)
     settings.display.resources.scoreInfoColor = new alphaTab.model.Color(242, 242, 245)
 
+    /*
+     * Parse once up front, before the api exists.
+     *
+     * Two things come out of this pass and both have to be settled before
+     * alphaTab reads the settings object: the text encoding — GP3-GP5 files are
+     * written in a legacy code page and render their titles and section markers
+     * as `?` under UTF-8 — and which single track to draw. A full arrangement
+     * like Master of Puppets has five guitar tracks over 425 bars, which is both
+     * slow to lay out and unreadable; the track panel adds the others on demand.
+     */
+    const bytes = new Uint8Array(fileData)
+    let trackIndexes: number[] | undefined
+    try {
+      const { score: parsed, encoding } = loadScoreRecovering((enc) => {
+        const probe = new alphaTab.Settings()
+        probe.importer.encoding = enc
+        return alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes, probe)
+      })
+      settings.importer.encoding = encoding
+
+      const candidates = parsed.tracks
+        .map((t) => {
+          const staff = t.staves[0]
+          const isPercussion = Boolean(staff?.isPercussion || t.playbackInfo?.primaryChannel === 9)
+          const name = t.name?.trim() || ''
+          return {
+            index: t.index,
+            name,
+            instrument: /^@#.*#@$/.test(name)
+              ? null
+              : trackInstrument(
+                  t.playbackInfo?.program ?? 0,
+                  isPercussion,
+                  staff?.tuning?.length ?? 0
+                )
+          }
+        })
+        .filter((t) => t.instrument !== null)
+
+      const wanted = candidates.filter((t) => t.instrument === preferredInstrument)
+      const pool = wanted.length ? wanted : candidates
+      const primary =
+        pool.find((t) => /(lead|main|solo)/i.test(t.name)) ??
+        pool.find((t) => !/(additional|extra|backing|clean)/i.test(t.name)) ??
+        pool[0]
+      if (primary) trackIndexes = [primary.index]
+    } catch {
+      // the pre-parse is an optimisation; fall back to alphaTab's own defaults
+    }
+
     const api = new alphaTab.AlphaTabApi(container, settings)
     apiRef.current = api
     // dev-only handle for poking at the renderer from the devtools console
@@ -323,50 +374,11 @@ export const AlphaTabView = forwardRef<AlphaTabHandle, Props>(function AlphaTabV
     })
 
     /*
-     * Pick the track up front and hand it to load(). Calling renderTracks()
-     * from inside the scoreLoaded handler races alphaTab's own initial render
-     * and leaves the surface empty, so the selection has to happen here.
-     *
-     * Only ONE staff is shown by default: a full arrangement like Master of
-     * Puppets has five guitar tracks over 425 bars, which is both slow to lay
-     * out and unreadable. The track panel adds the others on demand.
+     * Hand the chosen track to load(). Calling renderTracks() from inside the
+     * scoreLoaded handler races alphaTab's own initial render and leaves the
+     * surface empty, so the selection has to travel with the load itself.
      */
     try {
-      const bytes = new Uint8Array(fileData)
-      let trackIndexes: number[] | undefined
-      try {
-        const parsed = alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes, settings)
-        const candidates = parsed.tracks
-          .map((t) => {
-            const staff = t.staves[0]
-            const isPercussion = Boolean(
-              staff?.isPercussion || t.playbackInfo?.primaryChannel === 9
-            )
-            const name = t.name?.trim() || ''
-            return {
-              index: t.index,
-              name,
-              instrument: /^@#.*#@$/.test(name)
-                ? null
-                : trackInstrument(
-                    t.playbackInfo?.program ?? 0,
-                    isPercussion,
-                    staff?.tuning?.length ?? 0
-                  )
-            }
-          })
-          .filter((t) => t.instrument !== null)
-
-        const wanted = candidates.filter((t) => t.instrument === preferredInstrument)
-        const pool = wanted.length ? wanted : candidates
-        const primary =
-          pool.find((t) => /(lead|main|solo)/i.test(t.name)) ??
-          pool.find((t) => !/(additional|extra|backing|clean)/i.test(t.name)) ??
-          pool[0]
-        if (primary) trackIndexes = [primary.index]
-      } catch {
-        // pre-parse is only an optimisation; fall back to alphaTab's default
-      }
       api.load(bytes, trackIndexes)
     } catch (err) {
       onError?.(err instanceof Error ? err.message : String(err))

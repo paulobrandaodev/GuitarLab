@@ -47,7 +47,14 @@ function StatusPill({ status }: { status: string }): ReactNode {
   return <Badge tone={tone}>{label}</Badge>
 }
 
-export function LabScreen({ songId }: { songId?: number }): ReactNode {
+export function LabScreen({
+  songId,
+  embedded = false
+}: {
+  songId?: number
+  /** Inside the song hub the song is already chosen and titled by the shell. */
+  embedded?: boolean
+}): ReactNode {
   const go = useNav((s) => s.go)
   const { toast, show, clear } = useToast()
 
@@ -101,10 +108,12 @@ export function LabScreen({ songId }: { songId?: number }): ReactNode {
   const stems = media.filter((m) => m.kind.startsWith('stem_'))
 
   return (
-    <div className="scroll-area h-full px-6 pb-4">
+    <div className={cx('scroll-area h-full pb-4', embedded ? 'px-0' : 'px-6')}>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Laboratório de Áudio</h1>
+          <h1 className={cx('font-bold', embedded ? 'text-base' : 'text-xl')}>
+            Laboratório de Áudio
+          </h1>
           <p className="text-txt-dim text-sm">
             Separação de stems e análise rodando localmente na sua GPU
           </p>
@@ -156,20 +165,30 @@ export function LabScreen({ songId }: { songId?: number }): ReactNode {
         />
       ) : (
         <>
-          <div className="mb-4 max-w-md">
-            <NeuSelect
-              label="música"
-              value={selected ? String(selected) : ''}
-              onChange={(v) => setSelected(v ? Number(v) : null)}
-              options={[
-                { value: '', label: '— escolha uma música —' },
-                ...songs.map((s) => ({
-                  value: String(s.id),
-                  label: `${s.title}${s.artist ? ` — ${s.artist}` : ''}`
-                }))
-              ]}
+          {!embedded && (
+            <div className="mb-4 max-w-md">
+              <NeuSelect
+                label="música"
+                value={selected ? String(selected) : ''}
+                onChange={(v) => setSelected(v ? Number(v) : null)}
+                options={[
+                  { value: '', label: '— escolha uma música —' },
+                  ...songs.map((s) => ({
+                    value: String(s.id),
+                    label: `${s.title}${s.artist ? ` — ${s.artist}` : ''}`
+                  }))
+                ]}
+              />
+            </div>
+          )}
+
+          {embedded && !song && (
+            <EmptyState
+              icon={<IconWave width={26} height={26} />}
+              title="Essa música ainda não tem áudio local"
+              description="O laboratório escuta a gravação. Baixe a faixa pelo botão WAV no setlist, ou coloque o arquivo na pasta de áudio e importe."
             />
-          </div>
+          )}
 
           {song && (
             <>

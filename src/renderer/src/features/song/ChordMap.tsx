@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { NeuCard, NeuButton, Badge, Spinner, EmptyState, cx } from '../../components/ui'
 import { IconChords, IconPlay, IconPause, IconLab } from '../../components/ui/icons'
 import { api, isError, formatDuration } from '../../lib/api'
 import type { ChordMapView, ChordSpan, MediaAssetView, SongView } from '@shared/types'
-import { transposeChord, spanAt, distinctChords, NO_CHORD } from '@shared/chords'
+import { transposeChord, spanAt, distinctChords, mergeChordSpans, NO_CHORD } from '@shared/chords'
+import { ChordHud } from '../practice/ChordHud'
 
 /**
  * The chord track over the recording, the way Chordify shows it.
@@ -76,6 +77,17 @@ export function ChordMap({
   const frame = useRef<number | null>(null)
 
   const audio = media.find((m) => m.kind === 'audio_master')
+
+  /*
+   * The teleprompter wants chord *changes*, not beats. The detector emits one
+   * span per beat, so a bar of Em arrives as four identical blocks and "próximo
+   * acorde: Em" while Em is ringing helps nobody. The grid below keeps the raw
+   * spans — that is what makes the blocks proportional to their duration.
+   */
+  const hudSpans = useMemo(
+    () => (map ? mergeChordSpans(map.spans, { dropSilence: true }) : []),
+    [map]
+  )
 
   const load = useCallback(async () => {
     setMap(await api.chords.get(song.id))
@@ -263,6 +275,18 @@ export function ChordMap({
             onTimeUpdate={(e) => setPositionMs(e.currentTarget.currentTime * 1000)}
             preload="metadata"
           />
+        </div>
+      )}
+
+      {/*
+        The same head-up display the stems screen uses: the chord under your
+        fingers big, the one before it faded, the next two shrinking to the
+        right, and a bar showing how much of the current chord is left so the
+        change never arrives as a surprise.
+      */}
+      {hudSpans.length > 0 && (
+        <div className="mb-3">
+          <ChordHud spans={hudSpans} positionMs={positionMs} semitones={semitones} />
         </div>
       )}
 

@@ -1,7 +1,7 @@
-import { ipcMain, shell, dialog, BrowserWindow } from 'electron'
+import { app, ipcMain, shell, dialog, BrowserWindow } from 'electron'
 import { readFileSync, existsSync, copyFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
-import { config } from '../config'
+import { config, saveLibraryPaths } from '../config'
 import * as repo from '../db/repo'
 import {
   importAll,
@@ -13,6 +13,7 @@ import {
 import { parseGuitarProFile } from '../importers/guitarpro'
 import { importPlaylist } from '../importers/playlist'
 import * as youtube from '../services/youtube'
+import { playerUrl, startPlayerServer } from '../services/ytplayer'
 import * as spotify from '../services/spotify'
 import * as lab from '../services/lab'
 import * as sources from '../services/sources'
@@ -91,6 +92,19 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     stems: config.paths.stems,
     db: config.paths.db
   }))
+  /*
+   * Folders are read once at startup, so a change only takes effect on the next
+   * launch — the app restarts itself rather than leaving half the process
+   * pointing at the old library.
+   */
+  handle('library:setPaths', (next: Partial<Record<'gptabs' | 'songs' | 'stems', string>>) => {
+    saveLibraryPaths(next)
+    setTimeout(() => {
+      app.relaunch()
+      app.exit(0)
+    }, 250)
+    return { ok: true }
+  })
 
   /* --------------------------------------------------------------- songs */
 
@@ -151,6 +165,17 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   )
   handle('progress:recordSession', (input: repo.RecordSessionInput) => repo.recordSession(input))
   handle('progress:dailyQueue', (budget: number) => repo.getDailyQueue(budget))
+  handle('progress:queuePins', () => repo.listQueuePins())
+  handle('progress:queued', (songId: number, sectionId: number | null) =>
+    repo.isQueued(songId, sectionId)
+  )
+  handle('progress:enqueue', (songId: number, sectionId: number | null) =>
+    repo.addToQueue(songId, sectionId)
+  )
+  handle('progress:dequeue', (songId: number, sectionId: number | null) =>
+    repo.removeFromQueue(songId, sectionId)
+  )
+  handle('progress:clearQueue', () => repo.clearQueue())
   handle('progress:stats', () => repo.statsOverview())
   handle('progress:nextBpm', (current: number, target: number, step: number) =>
     nextLadderBpm(current, target, step)
@@ -227,6 +252,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   )
   handle('youtube:setRole', (refId: number, role: YoutubeRole) => youtube.setRefRole(refId, role))
   handle('youtube:delete', (refId: number) => youtube.deleteRef(refId))
+  /*
+   * Where the in-app player lives. The renderer asks once and drops the URL in
+   * an iframe; null means the local origin did not come up and the UI should
+   * fall back to opening the video in the browser.
+   */
+  handle('youtube:playerUrl', async () => {
+    if (!playerUrl()) await startPlayerServer()
+    return playerUrl()
+  })
   handle('youtube:quota', () => ({
     used: youtube.quotaUsedToday(),
     limit: config.youtube.quotaLimit,

@@ -1,10 +1,18 @@
 {
-  "name": "setlist-lab",
+  "name": "guitarlab",
   "version": "0.1.0",
-  "description": "Setlist Lab — consolidacao de setlist e estudo de guitarra/baixo/bateria",
+  "description": "GuitarLab — estudo de guitarra: setlist, tablatura, stems, cifras e timbres",
   "main": "./out/main/index.js",
   "author": "Paulo Brandao",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paulobrandaodev/GuitarLab.git"
+  },
+  "bugs": {
+    "url": "https://github.com/paulobrandaodev/GuitarLab/issues"
+  },
+  "homepage": "https://github.com/paulobrandaodev/GuitarLab#readme",
   "type": "module",
   "scripts": {
     "dev": "electron-vite dev",
@@ -24,7 +32,8 @@
     "test:tabscroll": "electron scripts/test-tabscroll.mjs",
     "test:stretch": "electron scripts/test-stretch.mjs",
     "test:player": "electron scripts/test-player.mjs",
-    "test": "npm run typecheck && npm run test:stems && npm run test:setlist && npm run test:sources && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:chordmap && npm run test:stream && npm run test:tabscroll && npm run test:media && npm run build && npm run test:stretch && npm run test:player && npm run test:llm",
+    "test": "npm run typecheck && npm run test:stems && npm run test:setlist && npm run test:sources && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:chordmap && npm run test:stream && npm run test:ytplayer && npm run test:tabscroll && npm run test:media && npm run build && npm run test:stretch && npm run test:player && npm run test:llm",
+    "test:ytplayer": "tsx --tsconfig tsconfig.node.json scripts/test-ytplayer.ts",
     "test:stems": "tsx --tsconfig tsconfig.node.json scripts/test-stems.ts",
     "test:stream": "tsx --tsconfig tsconfig.node.json scripts/test-stream.ts",
     "test:setlist": "tsx --tsconfig tsconfig.node.json scripts/test-setlist.ts",
@@ -37,10 +46,52 @@
     "test:markdown": "tsx --tsconfig tsconfig.web.json scripts/test-markdown.tsx",
     "test:chordmap": "esbuild scripts/verify-chords.ts --bundle --platform=node --format=esm --target=node22 --outfile=out/verify-chords/index.js --external:electron --external:better-sqlite3 --alias:@shared=./src/shared && electron out/verify-chords"
   },
+  "build": {
+    "appId": "com.paulobrandao.guitarlab",
+    "productName": "GuitarLab",
+    "copyright": "Paulo Brandao",
+    "directories": {
+      "output": "dist",
+      "buildResources": "resources"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "GuitarLab-${version}-instalador.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "GuitarLab",
+      "createDesktopShortcut": true
+    },
+    "portable": {
+      "artifactName": "GuitarLab-${version}-portatil.${ext}"
+    }
+  },
   "dependencies": {
     "@coderline/alphatab": "^1.8.4",
     "better-sqlite3": "^13.0.3",
-    "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {

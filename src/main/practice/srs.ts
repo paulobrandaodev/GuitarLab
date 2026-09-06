@@ -80,6 +80,8 @@ export interface QueueCandidate {
   /** Whether the song sits in an active setlist, and how soon that show is. */
   inActiveSetlist: boolean
   daysToShow: number | null
+  /** The user put this on the list by hand. */
+  pinned: boolean
 }
 
 /**
@@ -108,6 +110,7 @@ export function buildDailyQueue(
     }
 
     const reasons: string[] = []
+    if (c.pinned) reasons.push('você adicionou')
     if (neverPracticed) reasons.push('nunca treinado')
     else if (overdueDays >= 1) reasons.push(`atrasado ${Math.floor(overdueDays)}d`)
     if (c.status === 'shaky') reasons.push('inseguro')
@@ -133,28 +136,43 @@ export function buildDailyQueue(
       dueAt: c.dueAt,
       priority: Math.round(priority),
       estimatedMinutes,
-      reason: reasons.join(' · ')
+      reason: reasons.join(' · '),
+      pinned: c.pinned
     } satisfies DailyQueueItem
   })
 
-  scored.sort((a, b) => b.priority - a.priority)
-
-  /*
-   * Fill the budget, but spread across songs and instruments. Without this the
-   * queue stacks every instrument of whichever song scores highest, which is a
-   * worse session than touching three different songs.
-   */
   const queue: DailyQueueItem[] = []
   const songCount = new Map<number, number>()
   const instrumentCount = new Map<Instrument, number>()
   let spent = 0
+
+  /*
+   * Whatever the user pinned goes in first, in the order the caller listed it,
+   * and ignores the budget. The budget shapes the *derived* part of the queue;
+   * an item somebody deliberately put on today's list vanishing because the
+   * estimate overflowed 30 minutes is a bug with an excuse. Split before the
+   * sort below so the pinned order is the user's, not the scorer's.
+   */
+  for (const item of scored.filter((i) => i.pinned)) {
+    queue.push(item)
+    spent += item.estimatedMinutes
+    songCount.set(item.songId, (songCount.get(item.songId) ?? 0) + 1)
+    instrumentCount.set(item.instrument, (instrumentCount.get(item.instrument) ?? 0) + 1)
+  }
+
+  /*
+   * Fill the rest of the budget, but spread across songs and instruments.
+   * Without this the queue stacks every instrument of whichever song scores
+   * highest, which is a worse session than touching three different songs.
+   */
+  const remaining = scored.filter((i) => !i.pinned)
+  remaining.sort((a, b) => b.priority - a.priority)
 
   const penalised = (item: DailyQueueItem): number =>
     item.priority -
     (songCount.get(item.songId) ?? 0) * 35 -
     (instrumentCount.get(item.instrument) ?? 0) * 10
 
-  const remaining = [...scored]
   while (remaining.length > 0 && spent < budgetMinutes) {
     remaining.sort((a, b) => penalised(b) - penalised(a))
     const idx = remaining.findIndex((i) => spent + i.estimatedMinutes <= budgetMinutes)

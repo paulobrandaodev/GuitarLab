@@ -1,10 +1,17 @@
 import Database from 'better-sqlite3'
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, existsSync, copyFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { config } from '../config'
 import * as schema from './schema'
-import { repairContainerPaths, cleanStoredTitles } from './repair'
+import {
+  repairContainerPaths,
+  cleanStoredTitles,
+  dropUntrackedProgress,
+  repairGuitarProText
+} from './repair'
+import { parseGuitarProFile } from '../importers/guitarpro'
+import { PRACTICE_INSTRUMENT } from '@shared/types'
 
 let _db: BetterSQLite3Database<typeof schema> | null = null
 let _sqlite: Database.Database | null = null
@@ -195,6 +202,15 @@ CREATE TABLE IF NOT EXISTS progress (
 CREATE INDEX IF NOT EXISTS progress_song_idx ON progress(song_id);
 CREATE INDEX IF NOT EXISTS progress_due_idx ON progress(srs_due_at);
 
+CREATE TABLE IF NOT EXISTS practice_queue (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  song_id INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+  section_id INTEGER REFERENCES song_sections(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL DEFAULT 0,
+  added_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS practice_queue_song_idx ON practice_queue(song_id);
+
 CREATE TABLE IF NOT EXISTS analysis_jobs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   song_id INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
@@ -316,9 +332,32 @@ function addMissingColumns(sqlite: Database.Database): void {
   }
 }
 
+/**
+ * Carry the library across the rename from Setlist Lab to GuitarLab.
+ *
+ * Electron derives `userData` from the app name, so the new name points at an
+ * empty directory and the app would come up with no songs, no setlists and no
+ * practice history. Copy rather than move: if anything goes wrong the old
+ * install is still there to fall back to. The `-wal` file matters — the database
+ * runs in WAL mode, so the most recent writes may live only in it.
+ */
+function adoptLegacyDatabase(): void {
+  if (existsSync(config.paths.db) || !existsSync(config.paths.legacyDb)) return
+  try {
+    for (const suffix of ['', '-wal', '-shm']) {
+      const from = `${config.paths.legacyDb}${suffix}`
+      if (existsSync(from)) copyFileSync(from, `${config.paths.db}${suffix}`)
+    }
+    console.log(`[db] biblioteca do Setlist Lab adotada de ${config.paths.legacyDb}`)
+  } catch (err) {
+    console.error('[db] não deu para adotar o banco antigo:', err)
+  }
+}
+
 export function initDb(): BetterSQLite3Database<typeof schema> {
   if (_db) return _db
   mkdirSync(dirname(config.paths.db), { recursive: true })
+  adoptLegacyDatabase()
   const sqlite = new Database(config.paths.db)
   sqlite.exec(DDL)
   seed(sqlite)
@@ -336,6 +375,25 @@ export function initDb(): BetterSQLite3Database<typeof schema> {
         `${repaired.dropped} duplicata(s) removida(s)`
     )
   }
+  const untracked = dropUntrackedProgress(sqlite, PRACTICE_INSTRUMENT)
+  if (untracked.deleted) {
+    console.log(
+      `[db] ${untracked.deleted} linha(s) de progresso de outros instrumentos removidas — ` +
+        'as porcentagens contam só a guitarra'
+    )
+  }
+
+  const text = repairGuitarProText(sqlite, (path) => {
+    const parsed = parseGuitarProFile(path)
+    return { title: parsed.title, artist: parsed.artist, sections: parsed.sections }
+  })
+  if (text.songs || text.sections) {
+    console.log(
+      `[db] acentuação recuperada de ${text.songs} título(s) e ${text.sections} trecho(s) ` +
+        'relendo os arquivos Guitar Pro'
+    )
+  }
+
   const titles = cleanStoredTitles(sqlite)
   if (titles.renamed) {
     console.log(

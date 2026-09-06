@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 
 /**
@@ -43,6 +43,8 @@ function parseEnvFile(path: string): Record<string, string> {
  */
 function findProjectRoot(): string {
   const candidates = [
+    process.env.GUITARLAB_ROOT,
+    // the variable this app shipped under before the rename
     process.env.SETLIST_LAB_ROOT,
     app.isPackaged ? join(process.resourcesPath, '..') : app.getAppPath(),
     process.cwd()
@@ -84,26 +86,76 @@ function envInt(key: string, fallback: number): number {
  * the first thing to read a path, so the name has to be set right here: doing it
  * in main/index.ts is too late, because its imports run first.
  */
-app.setName('setlist-lab')
+export const APP_NAME = 'GuitarLab'
+export const APP_SLUG = 'guitarlab'
+
+/** What the app was called before the rename, and where its data still sits. */
+const LEGACY_SLUG = 'setlist-lab'
+
+app.setName(APP_SLUG)
 
 const userData = app.getPath('userData')
+
+/**
+ * The pre-rename userData directory, so the database can be carried over.
+ *
+ * `userData` is `<appData>/<app name>`, so renaming the app moves it — and a
+ * fresh empty library on the next launch is not an acceptable way to ship a new
+ * name. `initDb` copies the old database across the first time it finds one
+ * here and nothing at the new path.
+ */
+export const legacyUserData = join(dirname(userData), LEGACY_SLUG)
+
+/**
+ * Where the installed app is told to find the library.
+ *
+ * Run from the repo, the media folders are found by walking up to the project
+ * root. An installed build has no project root — it lives in Program Files —
+ * and `.env` is not somewhere a user should be asked to edit. So the folders can
+ * also be picked in Ajustes and are remembered here, in a plain JSON file next
+ * to the database. It is read before the database is opened, which is why this
+ * is a file and not a row in `app_settings`.
+ */
+export const overridesPath = join(userData, 'paths.json')
+
+function readOverrides(): Record<string, string> {
+  try {
+    if (!existsSync(overridesPath)) return {}
+    const parsed: unknown = JSON.parse(readFileSync(overridesPath, 'utf8'))
+    if (!parsed || typeof parsed !== 'object') return {}
+    const out: Record<string, string> = {}
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof value === 'string' && value.trim()) out[key] = value.trim()
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+const overrides = readOverrides()
+
+/** A folder the user chose in Ajustes wins over .env, but never over the environment. */
+function dir(key: 'gptabs' | 'songs' | 'stems', envKey: string, fallback: string): string {
+  return process.env[envKey] || overrides[key] || env(envKey, fallback)
+}
 
 export const config = {
   projectRoot,
   userData,
 
   paths: {
-    db: join(userData, 'setlist-lab.db'),
-    gptabs: env('GPTABS_DIR', join(projectRoot, 'gptabs')),
-    songs: env('SONGS_DIR', join(projectRoot, 'songs')),
-    stems: env('STEMS_DIR', join(projectRoot, '.stems')),
+    db: join(userData, `${APP_SLUG}.db`),
+    legacyDb: join(legacyUserData, `${LEGACY_SLUG}.db`),
+    gptabs: dir('gptabs', 'GPTABS_DIR', join(projectRoot, 'gptabs')),
+    songs: dir('songs', 'SONGS_DIR', join(projectRoot, 'songs')),
+    stems: dir('stems', 'STEMS_DIR', join(projectRoot, '.stems')),
     waveforms: join(userData, 'waveforms'),
-    screenshots: join(userData, 'screenshots'),
-    soundfont: join(projectRoot, 'resources', 'soundfont.sf2')
+    screenshots: join(userData, 'screenshots')
   },
 
   ffmpeg: {
-    /** Empty means "use whatever is on PATH" — the user has 7.1.1 installed. */
+    /** Empty means "use whatever is on PATH". */
     path: env('FFMPEG_PATH') || 'ffmpeg',
     probePath: env('FFMPEG_PATH') ? env('FFMPEG_PATH').replace(/ffmpeg(\.exe)?$/i, 'ffprobe$1') : 'ffprobe'
   },
@@ -171,11 +223,7 @@ export const config = {
   },
 
   musicbrainz: {
-    userAgent: env('MUSICBRAINZ_USER_AGENT', 'SetlistLab/0.1 ( setlist-lab )')
-  },
-
-  genius: {
-    accessToken: env('GENIUS_ACCESS_TOKEN')
+    userAgent: env('MUSICBRAINZ_USER_AGENT', 'GuitarLab/0.1 ( guitarlab )')
   },
 
   lab: {
@@ -183,6 +231,23 @@ export const config = {
     demucsModel: env('DEMUCS_MODEL', 'htdemucs_6s'),
     demucsSegment: envInt('DEMUCS_SEGMENT', 7)
   }
+}
+
+/**
+ * Persist the folders picked in Ajustes.
+ *
+ * `config.paths` is frozen at import time, so the caller is expected to restart
+ * the app afterwards — which is what the Ajustes screen does. Writing straight
+ * through means a failed restart still leaves the choice recorded.
+ */
+export function saveLibraryPaths(next: Partial<Record<'gptabs' | 'songs' | 'stems', string>>): void {
+  const merged = { ...readOverrides() }
+  for (const [key, value] of Object.entries(next)) {
+    if (typeof value === 'string' && value.trim()) merged[key] = value.trim()
+    else delete merged[key]
+  }
+  mkdirSync(userData, { recursive: true })
+  writeFileSync(overridesPath, `${JSON.stringify(merged, null, 2)}\n`, 'utf8')
 }
 
 export type AppConfig = typeof config

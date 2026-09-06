@@ -308,6 +308,29 @@ export const progress = sqliteTable(
   ]
 )
 
+/* ---------------------------------------------------------- practice queue */
+/*
+ * Songs and sections the user put on today's list by hand.
+ *
+ * The daily queue is otherwise derived — overdue, shaky, gig approaching — and
+ * that is the right default, but there was no way to say "I want to work on
+ * this one today". A row here pins an item to the top of the queue and keeps it
+ * there until it is taken off. `sectionId` NULL means the whole song.
+ */
+export const practiceQueue = sqliteTable(
+  'practice_queue',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    songId: integer('song_id')
+      .notNull()
+      .references(() => songs.id, { onDelete: 'cascade' }),
+    sectionId: integer('section_id').references(() => songSections.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull().default(0),
+    addedAt: integer('added_at').notNull().default(now)
+  },
+  (t) => [index('practice_queue_song_idx').on(t.songId)]
+)
+
 /* ---------------------------------------------------------- analysis jobs */
 export const analysisJobs = sqliteTable(
   'analysis_jobs',
@@ -383,3 +406,4 @@ export type Tuning = typeof tunings.$inferSelect
 export type Setlist = typeof setlists.$inferSelect
 export type Chart = typeof charts.$inferSelect
 export type GearPatch = typeof gearPatches.$inferSelect
+export type PracticeQueueRow = typeof practiceQueue.$inferSelect

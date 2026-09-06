@@ -1,5 +1,6 @@
 import * as alphaTab from '@coderline/alphatab'
 import { readFileSync } from 'node:fs'
+import { loadScoreRecovering } from '@shared/gp'
 import type { GpParseResult, GpTrackInfo, Instrument, SectionKind } from '@shared/types'
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -80,9 +81,19 @@ export interface GpFullParse extends GpParseResult {
   chordSymbols: Array<{ bar: number; name: string }>
 }
 
-export function parseGuitarProFile(path: string): GpFullParse {
+/** Parse the file, falling back to the legacy code page when UTF-8 comes out broken. */
+export function loadScore(path: string): alphaTab.model.Score {
   const bytes = new Uint8Array(readFileSync(path))
-  const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes)
+  const { score } = loadScoreRecovering((encoding) => {
+    const settings = new alphaTab.Settings()
+    settings.importer.encoding = encoding
+    return alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes, settings)
+  })
+  return score
+}
+
+export function parseGuitarProFile(path: string): GpFullParse {
+  const score = loadScore(path)
 
   const firstBar = score.masterBars[0]
   const timeSignature = firstBar

@@ -1,15 +1,13 @@
-import { useEffect, useState, useCallback, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react'
 import {
   NeuCard,
   NeuButton,
   NeuInput,
   NeuSelect,
   Badge,
-  Segmented,
   Spinner,
   EmptyState,
   ProgressRing,
-  Stat,
   Toast,
   useToast,
   cx
@@ -20,15 +18,25 @@ import {
   IconSparkle,
   IconLab,
   IconPractice,
+  IconProgress,
   IconSearch,
   IconChords,
+  IconClock,
+  IconGrid,
+  IconTone,
+  IconTuner,
+  IconWave,
   IconX,
   INSTRUMENT_ICON
 } from '../../components/ui/icons'
 import { ToneTab } from './ToneTab'
 import { ChordMap } from './ChordMap'
+import { YoutubePlayer } from './YoutubePlayer'
+import { PracticeScreen } from '../practice/PracticeScreen'
+import { LabScreen } from '../lab/LabScreen'
+import { TunerScreen } from '../tuner/TunerScreen'
 import { api, isError, formatDuration, formatRelative } from '../../lib/api'
-import { useNav } from '../../App'
+import { useNav, type SongTab } from '../../App'
 import { buildChordPro, cifraReadiness } from '@shared/cifra'
 import type {
   SongView,
@@ -46,29 +54,26 @@ import {
   STATUS_LABEL,
   STATUS_ORDER,
   INSTRUMENT_LABEL,
+  PRACTICE_INSTRUMENT,
   ROLE_LABEL,
   PRIMARY_ROLES
 } from '@shared/types'
 
-type Tab = 'estudar' | 'cifra' | 'video' | 'timbre' | 'dados'
-
 /* ------------------------------------------------------------------ video */
 
-/**
- * Videos open in the real browser rather than in an embedded player.
- *
- * The renderer is served from `app://bundle`, and the YouTube IFrame player
- * refuses to start on any origin that is not http(s) — it answers with "erro de
- * configuração do player". Rewriting Origin/Referer from the main process was
- * not enough, because the player also validates the embedding page through
- * postMessage against its real origin, which stays `app://bundle`. Embedding
- * would need the page to be served from a local HTTP origin; until then the
- * thumbnail links out, which always works.
- */
 function watchUrl(videoId: string): string {
   return `https://www.youtube.com/watch?v=${videoId}`
 }
 
+/**
+ * The three study videos, playing in the app.
+ *
+ * One player, and the slots above choose what goes in it — a lesson, a backing
+ * track, the isolated guitar. Three players side by side would each have their
+ * own loop and speed and would all be fighting for the same speakers, which is
+ * not how anybody practises. The video still opens in the browser on demand,
+ * both as an escape hatch and because some uploaders forbid embedding.
+ */
 function VideoTab({ song }: { song: SongView }): ReactNode {
   const { toast, show, clear } = useToast()
   const [refs, setRefs] = useState<YoutubeRefView[]>([])
@@ -79,6 +84,8 @@ function VideoTab({ song }: { song: SongView }): ReactNode {
   const [searching, setSearching] = useState<YoutubeRole | 'all' | null>(null)
   const [manualUrl, setManualUrl] = useState('')
   const [manualRole, setManualRole] = useState<YoutubeRole>('lesson_tabs')
+  /** Which reference is loaded in the player. */
+  const [playingId, setPlayingId] = useState<number | null>(null)
 
   const refresh = useCallback(async () => {
     setRefs(await api.youtube.refs(song.id))
@@ -88,6 +95,14 @@ function VideoTab({ song }: { song: SongView }): ReactNode {
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  /** Best match per role: pinned first, then whatever the classifier trusted most. */
+  const bestFor = (role: YoutubeRole): YoutubeRefView | undefined =>
+    refs
+      .filter((r) => r.role === role)
+      .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.confidence - a.confidence)[0]
+
+  const current = refs.find((r) => r.id === playingId) ?? bestFor(PRIMARY_ROLES[0]) ?? refs[0]
 
   /** `roles` empty means all three slots. Each slot costs one search of quota. */
   const runSearch = async (roles?: YoutubeRole[]): Promise<void> => {
@@ -143,83 +158,89 @@ function VideoTab({ song }: { song: SongView }): ReactNode {
         </NeuButton>
       </div>
 
-      {/* the three practice slots */}
-      <div className="grid gap-3 lg:grid-cols-3">
+      {/* the three practice slots pick what plays below */}
+      <div className="grid gap-2.5 lg:grid-cols-3">
         {PRIMARY_ROLES.map((role) => {
           const matches = refs
             .filter((r) => r.role === role)
             .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.confidence - a.confidence)
           const best = matches[0]
+          const active = best && current?.id === best.id
           return (
-            <NeuCard key={role} className="flex min-h-[210px] flex-col p-4">
+            <NeuCard key={role} className={cx('p-3', active && 'neu-glow')}>
               <div className="micro-label mb-2">{ROLE_LABEL[role]}</div>
               {best ? (
-                <>
+                <div className="flex items-center gap-2.5">
                   <button
-                    onClick={() => void api.shell.openExternal(watchUrl(best.videoId))}
-                    className="neu-inset group relative mb-2 aspect-video overflow-hidden rounded-[14px]"
-                    title="Abrir no YouTube"
+                    onClick={() => setPlayingId(best.id)}
+                    className="neu-inset relative h-12 w-20 shrink-0 overflow-hidden rounded-[10px]"
+                    title="Tocar aqui dentro"
                   >
                     <img
                       src={`https://i.ytimg.com/vi/${best.videoId}/mqdefault.jpg`}
                       alt=""
-                      className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
+                      className="h-full w-full object-cover opacity-80"
                     />
                     <span className="absolute inset-0 grid place-items-center">
-                      <span className="gradient-bg text-void grid h-11 w-11 place-items-center rounded-full">
+                      <span
+                        className={cx(
+                          'grid h-6 w-6 place-items-center rounded-full text-[10px]',
+                          active ? 'gradient-bg text-void' : 'bg-void/70 text-txt'
+                        )}
+                      >
                         ▶
                       </span>
                     </span>
-                    <span className="text-txt bg-void/75 absolute right-1.5 bottom-1.5 rounded-full px-2 py-0.5 text-[9px] font-semibold">
-                      abrir no YouTube
-                    </span>
                   </button>
-                  <button
-                    onClick={() => void api.shell.openExternal(watchUrl(best.videoId))}
-                    className="hover:text-accent-2 line-clamp-2 text-left text-xs font-semibold"
-                    title="Abrir no YouTube"
-                  >
-                    {best.title}
-                  </button>
-                  <div className="text-txt-micro mt-0.5 text-[11px]">{best.channel}</div>
-                  <div className="mt-auto flex items-center gap-1.5 pt-2">
-                    {best.verified ? (
-                      <Badge tone="ok">confirmado</Badge>
-                    ) : (
-                      <Badge tone={best.confidence > 0.75 ? 'info' : 'warn'}>
-                        {Math.round(best.confidence * 100)}% certeza
-                      </Badge>
-                    )}
-                    {matches.length > 1 && <Badge>+{matches.length - 1}</Badge>}
+                  <div className="min-w-0 flex-1">
                     <button
-                      onClick={async () => {
-                        await api.youtube.remove(best.id)
-                        await refresh()
-                      }}
-                      className="text-txt-micro hover:text-danger ml-auto"
-                      title="Remover"
+                      onClick={() => setPlayingId(best.id)}
+                      className={cx(
+                        'line-clamp-2 text-left text-[11px] font-semibold',
+                        active ? 'gradient-text' : 'hover:text-accent-2'
+                      )}
                     >
-                      <IconX width={13} height={13} />
+                      {best.title ?? best.videoId}
                     </button>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      {best.verified ? (
+                        <Badge tone="ok">confirmado</Badge>
+                      ) : (
+                        <Badge tone={best.confidence > 0.75 ? 'info' : 'warn'}>
+                          {Math.round(best.confidence * 100)}%
+                        </Badge>
+                      )}
+                      {matches.length > 1 && <Badge>+{matches.length - 1}</Badge>}
+                      <button
+                        onClick={async () => {
+                          await api.youtube.remove(best.id)
+                          if (playingId === best.id) setPlayingId(null)
+                          await refresh()
+                        }}
+                        className="text-txt-micro hover:text-danger ml-auto"
+                        title="Remover"
+                      >
+                        <IconX width={12} height={12} />
+                      </button>
+                    </div>
                   </div>
-                </>
+                </div>
               ) : (
-                <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
-                  <IconYoutube width={26} height={26} className="text-txt-micro" />
-                  <p className="text-txt-micro text-[11px]">Nenhum vídeo desse tipo ainda</p>
+                <div className="flex flex-col items-center gap-1.5 py-1.5 text-center">
+                  <IconYoutube width={20} height={20} className="text-txt-micro" />
                   <NeuButton
-                    className="!px-3 !py-1.5 !text-[11px]"
+                    className="!px-3 !py-1 !text-[10px]"
                     onClick={() => void runSearch([role])}
                     disabled={searching !== null || (quota?.searchesLeft ?? 0) < 1}
                   >
                     <span className="flex items-center gap-1.5">
-                      {searching === role ? <Spinner size={12} /> : null}
+                      {searching === role ? <Spinner size={11} /> : null}
                       buscar só este
                     </span>
                   </NeuButton>
                   <button
                     onClick={() => openManualSearch(role)}
-                    className="gradient-text text-[11px] font-semibold"
+                    className="gradient-text text-[10px] font-semibold"
                   >
                     buscar no navegador
                   </button>
@@ -229,6 +250,27 @@ function VideoTab({ song }: { song: SongView }): ReactNode {
           )
         })}
       </div>
+
+      {current ? (
+        <NeuCard className="p-4">
+          <div className="mb-3 flex flex-wrap items-baseline gap-2">
+            <Badge tone="accent">{ROLE_LABEL[current.role]}</Badge>
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+              {current.title ?? current.videoId}
+            </span>
+            <span className="text-txt-micro text-[11px]">{current.channel}</span>
+          </div>
+          <YoutubePlayer videoId={current.videoId} title={current.title} />
+        </NeuCard>
+      ) : (
+        <NeuCard className="p-4">
+          <EmptyState
+            icon={<IconYoutube width={24} height={24} />}
+            title="Nenhum vídeo ainda"
+            description="Busque as três versões acima, ou cole a URL de um vídeo que você já conhece — colar não gasta cota."
+          />
+        </NeuCard>
+      )}
 
       {/* manual add — the zero-quota path */}
       <NeuCard className="p-4">
@@ -264,12 +306,23 @@ function VideoTab({ song }: { song: SongView }): ReactNode {
               <div key={r.id} className="flex items-center gap-2.5 text-xs">
                 <Badge>{ROLE_LABEL[r.role]}</Badge>
                 <button
-                  onClick={() => void api.shell.openExternal(watchUrl(r.videoId))}
-                  className="hover:text-accent-2 min-w-0 flex-1 truncate text-left"
+                  onClick={() => setPlayingId(r.id)}
+                  className={cx(
+                    'min-w-0 flex-1 truncate text-left',
+                    current?.id === r.id ? 'gradient-text font-semibold' : 'hover:text-accent-2'
+                  )}
+                  title="Tocar aqui dentro"
                 >
                   {r.title ?? r.videoId}
                 </button>
                 <span className="text-txt-micro shrink-0">{r.channel}</span>
+                <button
+                  onClick={() => void api.shell.openExternal(watchUrl(r.videoId))}
+                  className="text-txt-micro hover:text-txt shrink-0 text-[10px]"
+                  title="Abrir no YouTube"
+                >
+                  ↗
+                </button>
                 <select
                   value={r.role}
                   onChange={async (e) => {
@@ -770,16 +823,21 @@ function ProgressPanel({
   song,
   sections,
   progress,
-  onChange
+  queued,
+  onChange,
+  onToggleQueue
 }: {
   song: SongView
   sections: SectionView[]
   progress: ProgressView[]
+  /** Section ids currently pinned; `null` stands for the whole song. */
+  queued: Set<number | null>
   onChange: () => void
+  onToggleQueue: (sectionId: number | null) => void
 }): ReactNode {
   // Guitar only: bass and drums were noise on a screen the user opens to
   // practise guitar. The data model still keeps one row per instrument.
-  const instrument: Instrument = 'guitar'
+  const instrument: Instrument = PRACTICE_INSTRUMENT
 
   const rowFor = (sectionId: number | null): ProgressView | undefined =>
     progress.find((p) => p.instrument === instrument && (p.sectionId ?? null) === sectionId)
@@ -806,13 +864,22 @@ function ProgressPanel({
       <div className="space-y-1.5">
         {rows.map((row) => {
           const p = rowFor(row.id)
+          const pinned = queued.has(row.id)
           return (
             <div key={row.id ?? 'all'} className="flex flex-wrap items-center gap-2">
-              <span
+              {/* one click puts this exact trecho at the top of today's list */}
+              <button
+                onClick={() => onToggleQueue(row.id)}
+                title={pinned ? 'Tirar da fila de estudos' : 'Adicionar à fila de estudos'}
                 className={cx(
-                  'w-36 shrink-0 truncate text-xs',
-                  row.id === null && 'font-bold'
+                  'grid h-6 w-6 shrink-0 place-items-center rounded-[8px] text-sm leading-none font-bold',
+                  pinned ? 'neu-glow gradient-text' : 'neu-press text-txt-micro'
                 )}
+              >
+                {pinned ? '★' : '+'}
+              </button>
+              <span
+                className={cx('w-32 shrink-0 truncate text-xs', row.id === null && 'font-bold')}
               >
                 {row.name}
               </span>
@@ -851,21 +918,144 @@ function ProgressPanel({
           )
         })}
       </div>
+
+      <p className="text-txt-micro mt-3 text-[11px] leading-snug">
+        O <b>+</b> na frente de cada linha manda aquele trecho para a fila de estudos de hoje, em
+        Progresso. As porcentagens contam só a guitarra.
+      </p>
     </NeuCard>
   )
 }
 
-/* ------------------------------------------------------------------ main */
+/* -------------------------------------------------------------- song hub */
 
-export function SongScreen({ songId }: { songId: number }): ReactNode {
+/**
+ * Everything about one song lives behind one menu.
+ *
+ * Before this, the pieces of a song were scattered across three routes: the
+ * tablature and the stem player were in Estudar, the analysis jobs were in
+ * Laboratório, and only the videos, chart, tone and metadata were here. Getting
+ * from the chart to the stems meant going back out to the setlist. Now the song
+ * is the place and these are its rooms — the shell keeps the title, the mastery
+ * ring and the actions on screen while the room changes underneath.
+ */
+const HUB_TABS: Array<{
+  id: SongTab
+  label: string
+  icon: typeof IconPractice
+  hint: string
+}> = [
+  { id: 'visao', label: 'Visão geral', icon: IconProgress, hint: 'Status por trecho' },
+  { id: 'estudar', label: 'Tablatura', icon: IconPractice, hint: 'Guitar Pro com player' },
+  { id: 'stems', label: 'Stems', icon: IconWave, hint: 'Faixas separadas' },
+  { id: 'video', label: 'Vídeos', icon: IconYoutube, hint: 'Aulas e backing tracks' },
+  { id: 'cifra', label: 'Cifra & Letra', icon: IconChords, hint: 'Acordes e letra' },
+  { id: 'timbre', label: 'Timbre', icon: IconTone, hint: 'Ajuste do seu rig' },
+  { id: 'afinador', label: 'Afinador', icon: IconTuner, hint: 'Afinação desta música' },
+  { id: 'lab', label: 'Laboratório', icon: IconLab, hint: 'Separar e analisar' },
+  { id: 'dados', label: 'Dados', icon: IconGrid, hint: 'Tom, andamento, arquivos' }
+]
+
+/** The rooms that manage their own scrolling and want the full height. */
+const FULL_HEIGHT: SongTab[] = ['estudar', 'stems', 'afinador']
+
+function HubNav({
+  tab,
+  onPick,
+  song,
+  stemCount
+}: {
+  tab: SongTab
+  onPick: (tab: SongTab) => void
+  song: SongView
+  stemCount: number
+}): ReactNode {
+  /** A short note on the right of a row when the room has nothing to show yet. */
+  const missing = (id: SongTab): string | null => {
+    if (id === 'estudar' && !song.hasGuitarPro) return 'sem GP'
+    if (id === 'stems' && stemCount === 0) return 'sem stems'
+    if (id === 'lab' && !song.hasAudio) return 'sem áudio'
+    return null
+  }
+
+  return (
+    <nav className="flex flex-col gap-1">
+      {HUB_TABS.map((item) => {
+        const Icon = item.icon
+        const active = tab === item.id
+        const note = missing(item.id)
+        return (
+          <button
+            key={item.id}
+            onClick={() => onPick(item.id)}
+            title={item.hint}
+            className={cx(
+              'flex items-center gap-2.5 rounded-[13px] px-3 py-2 text-left transition-all',
+              active ? 'neu-raised-sm gradient-text' : 'text-txt-dim hover:text-txt'
+            )}
+          >
+            <Icon width={16} height={16} className="shrink-0" />
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold">{item.label}</span>
+            {note && <span className="text-txt-micro shrink-0 text-[9px]">{note}</span>}
+            {item.id === 'stems' && stemCount > 0 && (
+              <span className="text-txt-micro shrink-0 text-[9px] tabular-nums">{stemCount}</span>
+            )}
+          </button>
+        )
+      })}
+    </nav>
+  )
+}
+
+export function SongScreen({
+  songId,
+  tab: routeTab,
+  sectionId
+}: {
+  songId: number
+  /** Which room to open in; the menu takes over from here. */
+  tab?: SongTab
+  sectionId?: number | null
+}): ReactNode {
   const go = useNav((s) => s.go)
+  const { toast, show, clear } = useToast()
   const [song, setSong] = useState<SongView | null>(null)
   const [sections, setSections] = useState<SectionView[]>([])
   const [media, setMedia] = useState<MediaAssetView[]>([])
   const [progress, setProgress] = useState<ProgressView[]>([])
   const [tunings, setTunings] = useState<TuningView[]>([])
-  const [tab, setTab] = useState<Tab>('estudar')
+  const [queued, setQueued] = useState<Set<number | null>>(new Set())
+  const [tab, setTab] = useState<SongTab>(routeTab ?? 'visao')
   const [loading, setLoading] = useState(true)
+
+  // arriving from another screen with a room in mind (the daily queue, the
+  // setlist's "Estudar") re-points the menu without remounting the whole song
+  useEffect(() => {
+    if (routeTab) setTab(routeTab)
+  }, [routeTab])
+
+  /*
+   * "Estudar" means "put me in front of this song", not "open the tablature".
+   * A song with no Guitar Pro file but with separated stems has a perfectly good
+   * practice room; sending the user to an empty score with a note about copying
+   * files into gptabs/ is a dead end. Only redirects once per arrival, so
+   * clicking Tablatura afterwards sticks.
+   */
+  const redirected = useRef<string | null>(null)
+  useEffect(() => {
+    if (!song || routeTab !== 'estudar') return
+    const key = `${song.id}:estudar`
+    if (redirected.current === key) return
+    redirected.current = key
+    if (!song.hasGuitarPro && media.some((m) => m.kind.startsWith('stem_'))) setTab('stems')
+  }, [routeTab, song, media])
+
+  const refreshQueue = useCallback(async () => {
+    const pins = await api.progress.queuePins()
+    setQueued(
+      new Set(pins.filter((p) => p.songId === songId).map((p) => p.sectionId))
+    )
+  }, [songId])
 
   const refresh = useCallback(async () => {
     const [s, secs, m, p, t] = await Promise.all([
@@ -880,12 +1070,21 @@ export function SongScreen({ songId }: { songId: number }): ReactNode {
     setMedia(m)
     setProgress(p)
     setTunings(t)
+    await refreshQueue()
     setLoading(false)
-  }, [songId])
+  }, [songId, refreshQueue])
 
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  const toggleQueue = async (secId: number | null): Promise<void> => {
+    const on = queued.has(secId)
+    if (on) await api.progress.dequeue(songId, secId)
+    else await api.progress.enqueue(songId, secId)
+    await refreshQueue()
+    show(on ? 'Saiu da fila de estudos' : 'Na fila de estudos', on ? 'neutral' : 'ok')
+  }
 
   if (loading) {
     return (
@@ -903,89 +1102,154 @@ export function SongScreen({ songId }: { songId: number }): ReactNode {
     )
   }
 
+  const stems = media.filter((m) => m.kind.startsWith('stem_'))
+  const songQueued = queued.has(null)
+  const fullHeight = FULL_HEIGHT.includes(tab)
+
   return (
-    <div className="scroll-area h-full px-6 pb-4">
-      {/* hero */}
-      <div className="mb-5 flex flex-wrap items-center gap-6">
-        <ProgressRing
-          value={song.mastery}
-          size={130}
-          stroke={11}
-          showPip={song.status === 'gig_ready'}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="micro-label">{song.artist ?? 'sem artista'}</div>
-          <h1 className="truncate text-2xl font-bold">{song.title}</h1>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {song.tuning && <Badge tone="accent">{song.tuning.name}</Badge>}
-            {song.musicalKey && <Badge tone="info">{song.musicalKey}</Badge>}
-            {song.bpm && <Badge>{Math.round(song.bpm)} bpm</Badge>}
-            {song.timeSignature && <Badge>{song.timeSignature}</Badge>}
-            {song.capo > 0 && <Badge>capo {song.capo}</Badge>}
-            {song.hasGuitarPro && <Badge tone="accent">Guitar Pro</Badge>}
-            {song.hasAudio && <Badge tone="info">áudio</Badge>}
-            {song.hasStems && <Badge tone="ok">stems</Badge>}
+    <div className="flex h-full min-h-0 gap-4 px-5 pb-3">
+      {/* the menu: one place to reach every room of this song */}
+      <aside className="hidden w-52 shrink-0 flex-col gap-3 md:flex">
+        <NeuCard className="flex items-center gap-3 p-3">
+          <ProgressRing
+            value={song.mastery}
+            size={54}
+            stroke={6}
+            showPip={song.status === 'gig_ready'}
+          >
+            <span className="text-[12px] font-bold tabular-nums">{song.mastery}</span>
+          </ProgressRing>
+          <div className="min-w-0">
+            <div className="micro-label truncate">{song.artist ?? 'sem artista'}</div>
+            <div className="truncate text-sm font-bold" title={song.title}>
+              {song.title}
+            </div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <NeuButton variant="accent" onClick={() => go({ name: 'practice', songId: song.id })}>
-              <span className="flex items-center gap-2">
-                <IconPractice width={15} height={15} /> Estudar
-              </span>
-            </NeuButton>
-            {song.hasAudio && (
-              <NeuButton onClick={() => go({ name: 'lab', songId: song.id })}>
-                <span className="flex items-center gap-2">
-                  <IconLab width={15} height={15} /> Laboratório
-                </span>
-              </NeuButton>
-            )}
+        </NeuCard>
+
+        <NeuCard className="p-2">
+          <HubNav tab={tab} onPick={setTab} song={song} stemCount={stems.length} />
+        </NeuCard>
+
+        <NeuButton
+          variant={songQueued ? 'accent' : 'default'}
+          onClick={() => void toggleQueue(null)}
+          title="A fila de hoje fica na tela de Progresso"
+        >
+          <span className="flex items-center justify-center gap-2 text-[11px]">
+            <IconClock width={14} height={14} />
+            {songQueued ? 'Na fila de estudos' : 'Add à fila de estudos'}
+          </span>
+        </NeuButton>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* compact identity bar: the facts you keep glancing at while playing */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <h1 className="mr-1 truncate text-lg font-bold md:hidden">{song.title}</h1>
+          {song.tuning && <Badge tone="accent">{song.tuning.name}</Badge>}
+          {song.musicalKey && <Badge tone="info">{song.musicalKey}</Badge>}
+          {song.bpm && <Badge>{Math.round(song.bpm)} bpm</Badge>}
+          {song.timeSignature && <Badge>{song.timeSignature}</Badge>}
+          {song.capo > 0 && <Badge>capo {song.capo}</Badge>}
+          <span className="text-txt-micro ml-auto text-[11px]">
+            {formatDuration(song.durationMs)} · {sections.length} trechos · último treino{' '}
+            {formatRelative(song.lastPracticedAt)}
+          </span>
+        </div>
+
+        {/* the menu again, horizontally, on narrow windows */}
+        <div className="scroll-area mb-3 md:hidden">
+          <div className="flex gap-1.5">
+            {HUB_TABS.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setTab(item.id)}
+                className={cx(
+                  'shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold',
+                  tab === item.id ? 'neu-glow gradient-text' : 'neu-press text-txt-dim'
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
         </div>
-        <div className="flex gap-6">
-          <Stat value={formatDuration(song.durationMs)} label="duração" />
-          <Stat value={sections.length} label="trechos" />
-          <Stat value={formatRelative(song.lastPracticedAt)} label="último treino" />
+
+        <div className={cx('min-h-0 flex-1', !fullHeight && 'scroll-area pr-1')}>
+          {tab === 'visao' && (
+            <div className="space-y-4">
+              <ProgressPanel
+                song={song}
+                sections={sections}
+                progress={progress}
+                queued={queued}
+                onChange={() => void refresh()}
+                onToggleQueue={(secId) => void toggleQueue(secId)}
+              />
+              <div className="flex flex-wrap gap-2">
+                <NeuButton variant="accent" onClick={() => setTab('estudar')}>
+                  <span className="flex items-center gap-2">
+                    <IconPractice width={15} height={15} /> Abrir a tablatura
+                  </span>
+                </NeuButton>
+                {stems.length > 0 && (
+                  <NeuButton onClick={() => setTab('stems')}>
+                    <span className="flex items-center gap-2">
+                      <IconWave width={15} height={15} /> Tocar com os stems
+                    </span>
+                  </NeuButton>
+                )}
+                <NeuButton onClick={() => setTab('cifra')}>
+                  <span className="flex items-center gap-2">
+                    <IconChords width={15} height={15} /> Cifra & letra
+                  </span>
+                </NeuButton>
+              </div>
+            </div>
+          )}
+
+          {/* the tablature and the stem player are the practice screen, pinned
+              to one source each — the menu on the left is the switcher now */}
+          {tab === 'estudar' && (
+            <PracticeScreen
+              songId={song.id}
+              sectionId={sectionId ?? null}
+              fixedSource="gp_synth"
+              embedded
+            />
+          )}
+          {tab === 'stems' && (
+            <PracticeScreen
+              songId={song.id}
+              sectionId={sectionId ?? null}
+              fixedSource="stems"
+              embedded
+            />
+          )}
+
+          {tab === 'video' && <VideoTab song={song} />}
+          {/* `refresh` is stable, so the chord map's job subscription is not
+              rebuilt on every render of this screen */}
+          {tab === 'cifra' && (
+            <ChartTab song={song} media={media} sections={sections} onChanged={refresh} />
+          )}
+          {tab === 'timbre' && <ToneTab song={song} />}
+          {tab === 'afinador' && <TunerScreen songId={song.id} />}
+          {tab === 'lab' && <LabScreen songId={song.id} embedded />}
+          {tab === 'dados' && (
+            <DataTab
+              song={song}
+              sections={sections}
+              media={media}
+              tunings={tunings}
+              onSaved={() => void refresh()}
+            />
+          )}
         </div>
       </div>
 
-      <div className="mb-4">
-        <Segmented
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: 'estudar', label: 'Progresso' },
-            { value: 'video', label: 'Vídeos' },
-            { value: 'cifra', label: 'Cifra & Letra' },
-            { value: 'timbre', label: 'Timbre' },
-            { value: 'dados', label: 'Dados' }
-          ]}
-        />
-      </div>
-
-      {tab === 'estudar' && (
-        <ProgressPanel
-          song={song}
-          sections={sections}
-          progress={progress}
-          onChange={() => void refresh()}
-        />
-      )}
-      {tab === 'video' && <VideoTab song={song} />}
-      {/* `refresh` is stable, so the chord map's job subscription is not rebuilt
-          on every render of this screen */}
-      {tab === 'cifra' && (
-        <ChartTab song={song} media={media} sections={sections} onChanged={refresh} />
-      )}
-      {tab === 'timbre' && <ToneTab song={song} />}
-      {tab === 'dados' && (
-        <DataTab
-          song={song}
-          sections={sections}
-          media={media}
-          tunings={tunings}
-          onSaved={() => void refresh()}
-        />
-      )}
+      {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={clear} />}
     </div>
   )
 }

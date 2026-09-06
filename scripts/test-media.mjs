@@ -13,7 +13,8 @@
  */
 import { app, protocol, net, BrowserWindow } from 'electron'
 import { pathToFileURL } from 'node:url'
-import { existsSync } from 'node:fs'
+import { existsSync, statSync, createReadStream } from 'node:fs'
+import { Readable } from 'node:stream'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 
@@ -38,6 +39,58 @@ function check(label, ok, detail = '') {
   if (!ok) failures++
 }
 
+/**
+ * Trailing dots and spaces in a Windows path component — Chromium normalises
+ * them away and then cannot open the file, so those are read straight from
+ * disk. Mirrors `needsManualRead` / `readFromDisk` in src/main/index.ts.
+ */
+function needsManualRead(path) {
+  return path
+    .replace(/\\/g, '/')
+    .split('/')
+    .some((segment) => /[. ]$/.test(segment))
+}
+
+const AUDIO_TYPES = {
+  flac: 'audio/flac',
+  wav: 'audio/wav',
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  ogg: 'audio/ogg',
+  opus: 'audio/ogg'
+}
+
+function readFromDisk(path, request) {
+  const size = statSync(path).size
+  const type = AUDIO_TYPES[path.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream'
+  const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('range') ?? '')
+
+  let start = 0
+  let end = size - 1
+  let status = 200
+  if (range) {
+    const [, from, to] = range
+    if (from) {
+      start = Number(from)
+      if (to) end = Math.min(Number(to), end)
+    } else if (to) {
+      start = Math.max(0, size - Number(to))
+    }
+    if (start > end || start >= size) {
+      return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } })
+    }
+    status = 206
+  }
+
+  const headers = {
+    'Content-Type': type,
+    'Content-Length': String(end - start + 1),
+    'Accept-Ranges': 'bytes'
+  }
+  if (status === 206) headers['Content-Range'] = `bytes ${start}-${end}/${size}`
+  return new Response(Readable.toWeb(createReadStream(path, { start, end })), { status, headers })
+}
+
 /** Same construction as `mediaUrl` in src/preload/index.ts. */
 function mediaUrl(path) {
   return `media://local/${path.replace(/\\/g, '/').split('/').map(encodeURIComponent).join('/')}`
@@ -51,15 +104,23 @@ app.whenReady().then(async () => {
       console.log(`    [handler] NAO ENCONTRADO: ${decoded}`)
       return new Response('nao encontrado', { status: 404 })
     }
+    if (needsManualRead(decoded)) return readFromDisk(decoded, request)
     return net.fetch(pathToFileURL(decoded).toString())
   })
 
-  const dbPath = join(app.getPath('appData'), 'setlist-lab', 'setlist-lab.db')
-  if (!existsSync(dbPath)) {
-    console.log(`FALHA: banco nao encontrado em ${dbPath}`)
+  const appData = app.getPath('appData')
+  // the app was called setlist-lab before the rename; an install that has not
+  // been opened since still keeps its library under the old name
+  const dbPath = [
+    join(appData, 'guitarlab', 'guitarlab.db'),
+    join(appData, 'setlist-lab', 'setlist-lab.db')
+  ].find((candidate) => existsSync(candidate))
+  if (!dbPath) {
+    console.log(`FALHA: banco nao encontrado em ${join(appData, 'guitarlab', 'guitarlab.db')}`)
     app.exit(1)
     return
   }
+  console.log(`banco: ${dbPath}`)
   const db = new Database(dbPath, { readonly: true })
   const rows = db
     .prepare(

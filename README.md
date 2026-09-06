@@ -1,4 +1,4 @@
-# Setlist Lab
+# GuitarLab
 
 App desktop para consolidar o setlist da banda e estudar guitarra — tablaturas Guitar Pro, vídeos do YouTube, cifra/letra, cifra automática detectada do áudio, afinação, separação de stems na GPU e controle de progresso por trecho.
 
@@ -158,7 +158,7 @@ lab/               sidecar Python (FastAPI + Demucs + librosa + basic-pitch + wh
 scripts/verify.ts  verificação ponta a ponta contra os arquivos reais
 ```
 
-O banco fica em `%APPDATA%/setlist-lab/setlist-lab.db` — um arquivo, backup por cópia.
+O banco fica em `%APPDATA%/guitarlab/guitarlab.db` — um arquivo, backup por cópia. Na primeira abertura depois da renomeação, o banco antigo (`%APPDATA%/setlist-lab/setlist-lab.db`) é copiado para cá; o original fica onde está.
 
 ---
 

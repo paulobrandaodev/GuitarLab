@@ -29,6 +29,19 @@ export type JobStatus = 'queued' | 'running' | 'done' | 'error' | 'canceled'
 
 export const INSTRUMENTS: Instrument[] = ['guitar', 'bass', 'drums', 'vocals']
 
+/**
+ * The instrument this app is about.
+ *
+ * The data model still stores one progress row per instrument — a Guitar Pro
+ * file carries the whole band and the stem separator writes a bass and a drum
+ * track — but nothing the user is scored on counts anything except the guitar.
+ * Every readiness number, every practice-queue candidate and every session
+ * written from the practice screen goes through this constant, so "100% focused
+ * on guitar" is one edit away from being false rather than scattered across a
+ * dozen literals.
+ */
+export const PRACTICE_INSTRUMENT: Instrument = 'guitar'
+
 export const STATUS_ORDER: ProgressStatus[] = [
   'not_started',
   'learning',
@@ -299,6 +312,18 @@ export interface DailyQueueItem {
   priority: number
   estimatedMinutes: number
   reason: string
+  /** The user put this on the list by hand; it stays there until taken off. */
+  pinned: boolean
+}
+
+/** One entry of the hand-built practice queue. `sectionId` null = whole song. */
+export interface QueuePinView {
+  songId: number
+  sectionId: number | null
+  songTitle: string
+  artist: string | null
+  sectionName: string | null
+  addedAt: number
 }
 
 /* -------------------------------------------------------------- gear/tone */

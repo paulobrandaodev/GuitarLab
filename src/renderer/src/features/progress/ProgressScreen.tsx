@@ -7,17 +7,104 @@ import {
   Spinner,
   EmptyState,
   Segmented,
+  NeuInput,
   ProgressRing,
   Toast,
   useToast,
   cx
 } from '../../components/ui'
-import { IconClock, IconSparkle, IconFlame, INSTRUMENT_ICON } from '../../components/ui/icons'
+import {
+  IconClock,
+  IconSparkle,
+  IconFlame,
+  IconSearch,
+  IconX,
+  INSTRUMENT_ICON
+} from '../../components/ui/icons'
 import { Markdown } from '../../components/ui/markdown'
+import { Modal } from '../setlist/SetlistDialogs'
 import { api, isError } from '../../lib/api'
 import { useNav } from '../../App'
-import type { DailyQueueItem } from '@shared/types'
+import type { DailyQueueItem, QueuePinView, SongView } from '@shared/types'
 import { STATUS_LABEL, INSTRUMENT_LABEL } from '@shared/types'
+
+/**
+ * Put a song on today's list by hand.
+ *
+ * The queue is otherwise derived — overdue, shaky, gig approaching — which is a
+ * good default and a bad answer to "hoje eu quero trabalhar esta". Whole songs
+ * are pinned here; individual trechos are pinned from the song's Visão geral,
+ * where the section names are already on screen.
+ */
+function AddToQueueDialog({
+  onAdded,
+  onClose
+}: {
+  onAdded: () => void | Promise<void>
+  onClose: () => void
+}): ReactNode {
+  const [songs, setSongs] = useState<SongView[]>([])
+  const [query, setQuery] = useState('')
+  const [busy, setBusy] = useState<number | null>(null)
+
+  useEffect(() => {
+    void api.songs.list().then(setSongs)
+  }, [])
+
+  const q = query.trim().toLowerCase()
+  const matches = songs
+    .filter(
+      (s) =>
+        !q ||
+        s.title.toLowerCase().includes(q) ||
+        (s.artist ?? '').toLowerCase().includes(q)
+    )
+    .slice(0, 40)
+
+  return (
+    <Modal title="Adicionar à fila de estudos" onClose={onClose} wide>
+      <NeuInput
+        placeholder="Buscar por música ou artista"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        autoFocus
+      />
+      <div className="scroll-area mt-3 min-h-0 flex-1 space-y-1.5">
+        {matches.length === 0 && (
+          <p className="text-txt-micro py-6 text-center text-xs">
+            {songs.length === 0 ? 'Nenhuma música importada ainda.' : 'Nada com esse nome.'}
+          </p>
+        )}
+        {matches.map((s) => (
+          <div key={s.id} className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold">{s.title}</div>
+              <div className="text-txt-micro truncate text-[11px]">{s.artist ?? '—'}</div>
+            </div>
+            <Badge tone={s.status === 'gig_ready' ? 'ok' : 'neutral'}>
+              {STATUS_LABEL[s.status]}
+            </Badge>
+            <NeuButton
+              className="!px-3 !py-1.5 !text-[11px]"
+              disabled={busy === s.id}
+              onClick={async () => {
+                setBusy(s.id)
+                try {
+                  await api.progress.enqueue(s.id, null)
+                  await onAdded()
+                } finally {
+                  setBusy(null)
+                }
+              }}
+            >
+              {busy === s.id ? <Spinner size={12} /> : 'adicionar'}
+            </NeuButton>
+          </div>
+        ))}
+      </div>
+    </Modal>
+  )
+}
 
 /** GitHub-style year heatmap of practice minutes. */
 function Heatmap({ data }: { data: Array<{ day: string; seconds: number }> }): ReactNode {
@@ -74,11 +161,17 @@ function Heatmap({ data }: { data: Array<{ day: string; seconds: number }> }): R
   )
 }
 
-function QueueCard({ item }: { item: DailyQueueItem }): ReactNode {
+function QueueCard({
+  item,
+  onUnpin
+}: {
+  item: DailyQueueItem
+  onUnpin: () => void
+}): ReactNode {
   const go = useNav((s) => s.go)
   const Icon = INSTRUMENT_ICON[item.instrument]
   return (
-    <NeuCard className="p-3.5">
+    <NeuCard className={cx('p-3.5', item.pinned && 'neu-glow')}>
       <div className="flex items-center gap-3">
         <div className="neu-inset grid h-11 w-11 shrink-0 place-items-center rounded-[14px]">
           <Icon width={18} height={18} className="text-txt-micro" />
@@ -95,6 +188,7 @@ function QueueCard({ item }: { item: DailyQueueItem }): ReactNode {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {item.pinned && <Badge tone="accent">★ na fila</Badge>}
           <Badge tone={item.status === 'shaky' ? 'warn' : 'neutral'}>
             {STATUS_LABEL[item.status]}
           </Badge>
@@ -109,6 +203,15 @@ function QueueCard({ item }: { item: DailyQueueItem }): ReactNode {
           >
             treinar
           </NeuButton>
+          {item.pinned && (
+            <button
+              onClick={onUnpin}
+              className="text-txt-micro hover:text-danger"
+              title="Tirar da fila"
+            >
+              <IconX width={13} height={13} />
+            </button>
+          )}
         </div>
       </div>
     </NeuCard>
@@ -124,17 +227,32 @@ export function ProgressScreen(): ReactNode {
     heatmap: Array<{ day: string; seconds: number; sessions: number }>
     bpmProgress: Array<{ song: string; instrument: string; day: string; bpm: number }>
   } | null>(null)
+  const [pins, setPins] = useState<QueuePinView[]>([])
+  const [adding, setAdding] = useState(false)
   const [loading, setLoading] = useState(true)
   const [plan, setPlan] = useState<string | null>(null)
   const [planLoading, setPlanLoading] = useState(false)
+  /** Bumped after any change to the pins, to re-read the queue they reorder. */
+  const [revision, setRevision] = useState(0)
 
   useEffect(() => {
-    void Promise.all([api.progress.dailyQueue(budget), api.progress.stats()]).then(([q, s]) => {
+    void Promise.all([
+      api.progress.dailyQueue(budget),
+      api.progress.stats(),
+      api.progress.queuePins()
+    ]).then(([q, s, p]) => {
       setQueue(q)
       setStats(s)
+      setPins(p)
       setLoading(false)
     })
-  }, [budget])
+  }, [budget, revision])
+
+  const unpin = async (songId: number, sectionId: number | null): Promise<void> => {
+    await api.progress.dequeue(songId, sectionId)
+    setRevision((r) => r + 1)
+    show('Saiu da fila', 'neutral')
+  }
 
   const askPlan = async (): Promise<void> => {
     setPlanLoading(true)
@@ -206,6 +324,24 @@ export function ProgressScreen(): ReactNode {
                 { value: '120', label: '2 horas' }
               ]}
             />
+            <NeuButton variant="accent" onClick={() => setAdding(true)}>
+              <span className="flex items-center gap-2">
+                <IconSearch width={15} height={15} />
+                Adicionar música
+              </span>
+            </NeuButton>
+            {pins.length > 0 && (
+              <NeuButton
+                onClick={async () => {
+                  await api.progress.clearQueue()
+                  setRevision((r) => r + 1)
+                  show('Fila limpa', 'neutral')
+                }}
+                title="Tira todas as músicas que você adicionou à mão"
+              >
+                Limpar fixadas ({pins.length})
+              </NeuButton>
+            )}
             <NeuButton onClick={askPlan} disabled={planLoading || queue.length === 0}>
               <span className="flex items-center gap-2">
                 {planLoading ? <Spinner size={14} /> : <IconSparkle width={15} height={15} />}
@@ -219,12 +355,21 @@ export function ProgressScreen(): ReactNode {
           <EmptyState
             icon={<IconClock width={24} height={24} />}
             title="Fila vazia"
-            description="Importe músicas e marque o status dos trechos para o app montar sua rotina."
+            description="A fila se monta sozinha a partir do que está atrasado e do que tem show chegando. Para escolher você mesmo, use “Adicionar música” — ou o + em cada trecho, dentro da música."
+            action={
+              <NeuButton variant="accent" onClick={() => setAdding(true)}>
+                Adicionar música
+              </NeuButton>
+            }
           />
         ) : (
           <div className="space-y-2">
             {queue.map((item, i) => (
-              <QueueCard key={`${item.songId}-${item.sectionId}-${item.instrument}-${i}`} item={item} />
+              <QueueCard
+                key={`${item.songId}-${item.sectionId}-${item.instrument}-${i}`}
+                item={item}
+                onUnpin={() => void unpin(item.songId, item.sectionId)}
+              />
             ))}
           </div>
         )}
@@ -296,6 +441,16 @@ export function ProgressScreen(): ReactNode {
             })}
           </div>
         </NeuCard>
+      )}
+
+      {adding && (
+        <AddToQueueDialog
+          onAdded={() => {
+            setRevision((r) => r + 1)
+            show('Adicionada à fila de estudos', 'ok')
+          }}
+          onClose={() => setAdding(false)}
+        />
       )}
 
       {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={clear} />}

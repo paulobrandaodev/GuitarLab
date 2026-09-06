@@ -35,7 +35,13 @@ function parseLrc(lrc) {
 }
 
 contextBridge.exposeInMainWorld('api', {
-  library: { importAll: none, importGuitarPro: none, importAudio: none, paths: none },
+  library: {
+    importAll: none,
+    importGuitarPro: none,
+    importAudio: none,
+    paths: none,
+    setPaths: none
+  },
   songs: {
     list: async () => stub.songs ?? [],
     get: async () => stub.song ?? null,
@@ -64,6 +70,11 @@ contextBridge.exposeInMainWorld('api', {
     setTargetBpm: none,
     recordSession: none,
     dailyQueue: empty,
+    queuePins: empty,
+    queued: async () => false,
+    enqueue: none,
+    dequeue: none,
+    clearQueue: none,
     stats: async () => ({ totals: {}, heatmap: [], bpmProgress: [] }),
     nextBpm: none
   },
@@ -87,7 +98,9 @@ contextBridge.exposeInMainWorld('api', {
     setRole: none,
     remove: none,
     quota: async () => ({ used: 0, limit: 10000, remaining: 10000, searchesLeft: 100 }),
-    manualUrl: none
+    manualUrl: none,
+    // no local player origin under test: the video tab falls back to the browser
+    playerUrl: none
   },
   spotify: {
     status: async () => ({ configured: false, connected: false, detail: '' }),

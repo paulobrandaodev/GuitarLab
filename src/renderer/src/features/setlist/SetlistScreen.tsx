@@ -88,6 +88,18 @@ function SourceChip({
 /** Expanded row detail, mirroring the Departure/Return card in the reference. */
 function SongDetail({ song }: { song: SongView }): ReactNode {
   const go = useNav((s) => s.go)
+  const [queued, setQueued] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    void api.progress.queued(song.id, null).then(setQueued)
+  }, [song.id])
+
+  const toggleQueue = async (): Promise<void> => {
+    if (queued) await api.progress.dequeue(song.id, null)
+    else await api.progress.enqueue(song.id, null)
+    setQueued(!queued)
+  }
+
   return (
     <div className="neu-inset mx-3.5 mb-3.5 rounded-[18px] p-4">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -121,12 +133,30 @@ function SongDetail({ song }: { song: SongView }): ReactNode {
 
       <div className="mt-4 flex flex-wrap gap-2">
         <NeuButton onClick={() => go({ name: 'song', songId: song.id })}>Abrir música</NeuButton>
-        <NeuButton variant="accent" onClick={() => go({ name: 'practice', songId: song.id })}>
+        <NeuButton
+          variant="accent"
+          onClick={() => go({ name: 'song', songId: song.id, tab: 'estudar' })}
+        >
           Estudar
         </NeuButton>
+        <NeuButton onClick={() => go({ name: 'song', songId: song.id, tab: 'cifra' })}>
+          Cifra & letra
+        </NeuButton>
         {song.hasAudio && (
-          <NeuButton onClick={() => go({ name: 'lab', songId: song.id })}>Laboratório</NeuButton>
+          <NeuButton onClick={() => go({ name: 'song', songId: song.id, tab: 'lab' })}>
+            Laboratório
+          </NeuButton>
         )}
+        <NeuButton
+          variant={queued ? 'accent' : 'default'}
+          onClick={toggleQueue}
+          title="Entra no topo da fila de hoje, na tela de Progresso"
+        >
+          <span className="flex items-center gap-2">
+            <IconClock width={14} height={14} />
+            {queued ? 'Na fila de estudos' : 'Add à fila de estudos'}
+          </span>
+        </NeuButton>
       </div>
     </div>
   )

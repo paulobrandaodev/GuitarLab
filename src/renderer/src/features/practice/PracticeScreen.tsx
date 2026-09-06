@@ -32,7 +32,7 @@ import { MultitrackPlayer } from './MultitrackPlayer'
 import { api, isError, formatDuration } from '../../lib/api'
 import { useNav } from '../../App'
 import type { SongView, SectionView, Instrument, MediaAssetView } from '@shared/types'
-import { INSTRUMENT_LABEL } from '@shared/types'
+import { INSTRUMENT_LABEL, PRACTICE_INSTRUMENT } from '@shared/types'
 
 type Source = 'gp_synth' | 'stems' | 'youtube'
 
@@ -86,10 +86,20 @@ function SongPicker(): ReactNode {
 
 export function PracticeScreen({
   songId,
-  sectionId
+  sectionId,
+  fixedSource,
+  embedded = false
 }: {
   songId?: number
   sectionId?: number | null
+  /**
+   * Pins the player to one source. The song hub owns that choice in its own
+   * menu, so the in-screen switcher would be a second control for the same
+   * thing sitting two inches away from the first.
+   */
+  fixedSource?: Source
+  /** Inside the hub the shell already draws the title, badges and chrome. */
+  embedded?: boolean
 }): ReactNode {
   const go = useNav((s) => s.go)
   const { toast, show, clear } = useToast()
@@ -104,14 +114,15 @@ export function PracticeScreen({
   const [visibleTracks, setVisibleTracks] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [source, setSource] = useState<Source>('gp_synth')
+  const [ownSource, setSource] = useState<Source>('gp_synth')
+  const source = fixedSource ?? ownSource
   /*
    * Guitar only. Bass and drums existed here because a Guitar Pro file carries
    * every track, but this app is used to practise guitar — the switcher was one
    * more control between the player and the score. Track selection below still
    * lets any track be shown on demand.
    */
-  const instrument: Instrument = 'guitar'
+  const instrument: Instrument = PRACTICE_INSTRUMENT
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(1)
   const [metronome, setMetronome] = useState(false)
@@ -147,12 +158,15 @@ export function PracticeScreen({
       }
     } else {
       setGpData(null)
-      // no tab available: fall back to whatever media the song does have
-      if (mediaList.some((m) => m.kind.startsWith('stem_'))) setSource('stems')
-      else setSource('youtube')
+      // no tab available: fall back to whatever media the song does have. The
+      // hub pins the source itself, so leave its choice alone.
+      if (!fixedSource) {
+        if (mediaList.some((m) => m.kind.startsWith('stem_'))) setSource('stems')
+        else setSource('youtube')
+      }
     }
     setLoading(false)
-  }, [songId, show])
+  }, [songId, show, fixedSource])
 
   useEffect(() => {
     void load()
@@ -285,36 +299,48 @@ export function PracticeScreen({
   const stems = media.filter((m) => m.kind.startsWith('stem_'))
 
   return (
-    <div className="flex h-full flex-col px-5 pb-2">
-      {/* header */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="micro-label">{song.artist ?? 'sem artista'}</div>
-          <h1 className="truncate text-xl font-bold">{song.title}</h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {song.tuning && <Badge tone="accent">{song.tuning.name}</Badge>}
-          {song.musicalKey && <Badge tone="info">{song.musicalKey}</Badge>}
-          {song.timeSignature && <Badge>{song.timeSignature}</Badge>}
-          <Badge>{Math.round(targetBpm)} bpm original</Badge>
-        </div>
-      </div>
+    <div className={cx('flex h-full flex-col pb-2', embedded ? 'px-0' : 'px-5')}>
+      {!embedded && (
+        <>
+          {/* header */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="micro-label">{song.artist ?? 'sem artista'}</div>
+              <h1 className="truncate text-xl font-bold">{song.title}</h1>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {song.tuning && <Badge tone="accent">{song.tuning.name}</Badge>}
+              {song.musicalKey && <Badge tone="info">{song.musicalKey}</Badge>}
+              {song.timeSignature && <Badge>{song.timeSignature}</Badge>}
+              <Badge>{Math.round(targetBpm)} bpm original</Badge>
+            </div>
+          </div>
 
-      {/* source */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <Segmented
-          value={source}
-          onChange={setSource}
-          options={[
-            { value: 'gp_synth', label: 'Guitar Pro', icon: <IconPractice width={14} height={14} /> },
-            { value: 'stems', label: `Stems${stems.length ? ` (${stems.length})` : ''}`, icon: <IconWave width={14} height={14} /> },
-            { value: 'youtube', label: 'YouTube', icon: <IconYoutube width={14} height={14} /> }
-          ]}
-        />
-        <Badge tone="accent">
-          <INSTRUMENT_ICON.guitar width={12} height={12} /> {INSTRUMENT_LABEL.guitar}
-        </Badge>
-      </div>
+          {/* source */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <Segmented
+              value={source}
+              onChange={setSource}
+              options={[
+                {
+                  value: 'gp_synth',
+                  label: 'Guitar Pro',
+                  icon: <IconPractice width={14} height={14} />
+                },
+                {
+                  value: 'stems',
+                  label: `Stems${stems.length ? ` (${stems.length})` : ''}`,
+                  icon: <IconWave width={14} height={14} />
+                },
+                { value: 'youtube', label: 'YouTube', icon: <IconYoutube width={14} height={14} /> }
+              ]}
+            />
+            <Badge tone="accent">
+              <INSTRUMENT_ICON.guitar width={12} height={12} /> {INSTRUMENT_LABEL.guitar}
+            </Badge>
+          </div>
+        </>
+      )}
 
       {/* main area */}
       <div className="flex min-h-0 flex-1 gap-4">
@@ -497,7 +523,10 @@ export function PracticeScreen({
         controls on one screen — one of them inert — is how you lose ten minutes
         wondering why the audio will not slow down.
       */}
-      <NeuCard className={cx('mt-3 shrink-0 p-3.5', !gpTransport && 'opacity-60')}>
+      <NeuCard
+        className={cx('mt-3 shrink-0 p-3.5', !gpTransport && 'opacity-60')}
+        hidden={embedded && !gpTransport}
+      >
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <IconButton

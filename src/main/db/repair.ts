@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3'
 import { cleanTitle } from '../importers/matcher'
+import { isDamagedText } from '@shared/gp'
 
 /**
  * Repairs for data written by earlier versions of the app. Kept free of the
@@ -103,4 +104,111 @@ export function cleanStoredTitles(sqlite: Database.Database): {
   tx()
 
   return { renamed, examples }
+}
+
+/**
+ * Remove the progress rows for instruments this app does not track.
+ *
+ * Importing a Guitar Pro file used to open one progress row per track, so a
+ * five-track arrangement got a bass, a drum and a vocal row alongside the
+ * guitar. Nobody ever touches those rows, they sit at `not_started`, and they
+ * were averaged into the song's mastery ring — which is why a song whose guitar
+ * part was solid still showed a third of the circle filled. Nothing of value is
+ * lost: a row that was never practised carries no history.
+ */
+export function dropUntrackedProgress(
+  sqlite: Database.Database,
+  keep: string
+): { deleted: number } {
+  const found = sqlite
+    .prepare('SELECT COUNT(*) AS n FROM progress WHERE instrument <> ?')
+    .get(keep) as { n: number }
+  if (found.n === 0) return { deleted: 0 }
+  sqlite.prepare('DELETE FROM progress WHERE instrument <> ?').run(keep)
+  return { deleted: found.n }
+}
+
+/** What a re-parse of a Guitar Pro file gives back to this repair. */
+export interface GpTextSource {
+  title: string | null
+  artist: string | null
+  sections: Array<{ name: string; startBar: number }>
+}
+
+/**
+ * Re-read the Guitar Pro files behind text that was decoded with the wrong
+ * encoding.
+ *
+ * The importer now retries GP3-GP5 under the legacy code page, so new imports
+ * come in clean — but a title or section marker already stored as "Ot?rio eu
+ * vou te avisar" is unrecoverable in place: the failed decode replaced the
+ * original bytes with U+FFFD and threw them away. The file on disk still has
+ * them, so the fix is to parse it again and overwrite only the damaged rows.
+ *
+ * The parser is injected rather than imported so this stays testable without
+ * dragging alphaTab into a database test, and so a single unreadable file
+ * (moved, deleted, corrupt) is skipped instead of aborting the whole pass.
+ */
+export function repairGuitarProText(
+  sqlite: Database.Database,
+  parse: (path: string) => GpTextSource
+): { songs: number; sections: number } {
+  const damaged = sqlite
+    .prepare(
+      `SELECT DISTINCT s.id AS songId, s.title AS title, m.path AS path
+         FROM songs s
+         JOIN media_assets m ON m.song_id = s.id AND m.kind = 'guitarpro'
+        WHERE s.title LIKE '%' || char(65533) || '%'
+           OR EXISTS (
+                SELECT 1 FROM song_sections sec
+                 WHERE sec.song_id = s.id
+                   AND sec.name LIKE '%' || char(65533) || '%'
+              )`
+    )
+    .all() as Array<{ songId: number; title: string; path: string }>
+  if (!damaged.length) return { songs: 0, sections: 0 }
+
+  const setTitle = sqlite.prepare('UPDATE songs SET title = ? WHERE id = ?')
+  const setSection = sqlite.prepare('UPDATE song_sections SET name = ? WHERE id = ?')
+  const readSections = sqlite.prepare(
+    'SELECT id, name, start_bar AS startBar FROM song_sections WHERE song_id = ? ORDER BY position'
+  )
+
+  let songs = 0
+  let sections = 0
+  for (const row of damaged) {
+    let parsed: GpTextSource
+    try {
+      parsed = parse(row.path)
+    } catch {
+      // the file moved or will not parse — leave the row alone rather than
+      // replacing readable-ish text with nothing
+      continue
+    }
+
+    const tx = sqlite.transaction(() => {
+      if (isDamagedText(row.title) && parsed.title && !isDamagedText(parsed.title)) {
+        setTitle.run(parsed.title, row.songId)
+        songs++
+      }
+
+      const stored = readSections.all(row.songId) as Array<{
+        id: number
+        name: string
+        startBar: number | null
+      }>
+      for (const section of stored) {
+        if (!isDamagedText(section.name)) continue
+        // match on the bar the marker sits at: names are exactly what is broken,
+        // and the bar numbers survived the bad decode untouched
+        const fresh = parsed.sections.find((s) => s.startBar === section.startBar)
+        if (!fresh || isDamagedText(fresh.name)) continue
+        setSection.run(fresh.name, section.id)
+        sections++
+      }
+    })
+    tx()
+  }
+
+  return { songs, sections }
 }

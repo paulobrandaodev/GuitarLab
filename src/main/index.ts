@@ -1,11 +1,13 @@
 import { app, BrowserWindow, shell, protocol, net } from 'electron'
 import { join, normalize } from 'node:path'
-import { mkdirSync, existsSync } from 'node:fs'
+import { mkdirSync, existsSync, statSync, createReadStream } from 'node:fs'
+import { Readable } from 'node:stream'
 import { pathToFileURL } from 'node:url'
 import { config } from './config'
 import { initDb, closeDb } from './db/client'
 import { registerIpc } from './ipc'
 import { refreshAllRunning } from './services/lab'
+import { startPlayerServer, stopPlayerServer } from './services/ytplayer'
 
 let mainWindow: BrowserWindow | null = null
 let jobTimer: NodeJS.Timeout | null = null
@@ -58,6 +60,78 @@ function allowedRoot(path: string): boolean {
   return roots.some((r) => normalized.startsWith(r.replace(/\\/g, '/').toLowerCase()))
 }
 
+/**
+ * Windows path components that Chromium's file loader will not reach.
+ *
+ * A trailing dot or space is legal on NTFS — Demucs happily wrote the stems for
+ * "System Of A Down - B.Y.O.B." into a folder whose name ends in a period — but
+ * Chromium normalises those characters away before it opens the file, so
+ * `net.fetch` answers ERR_FILE_NOT_FOUND for a file Node reads without
+ * complaint. Those paths are served straight from disk instead.
+ */
+function needsManualRead(path: string): boolean {
+  return path
+    .replace(/\\/g, '/')
+    .split('/')
+    .some((segment) => /[. ]$/.test(segment))
+}
+
+const AUDIO_TYPES: Record<string, string> = {
+  flac: 'audio/flac',
+  wav: 'audio/wav',
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  ogg: 'audio/ogg',
+  opus: 'audio/ogg'
+}
+
+/**
+ * Serve one file with byte-range support.
+ *
+ * `<audio>` seeks by asking for a range, so answering the whole file for every
+ * request would make dragging the playhead re-download hundreds of megabytes —
+ * and the element gives up on a server that ignores Range. The stem player's
+ * own `fetch()` asks for everything, which is the 200 branch.
+ */
+function readFromDisk(path: string, request: Request): Response {
+  const size = statSync(path).size
+  const type = AUDIO_TYPES[path.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream'
+  const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('range') ?? '')
+
+  let start = 0
+  let end = size - 1
+  let status = 200
+  if (range) {
+    const [, from, to] = range
+    if (from) {
+      start = Number(from)
+      if (to) end = Math.min(Number(to), end)
+    } else if (to) {
+      // "bytes=-500" means the last 500 bytes
+      start = Math.max(0, size - Number(to))
+    }
+    if (start > end || start >= size) {
+      return new Response(null, {
+        status: 416,
+        headers: { 'Content-Range': `bytes */${size}` }
+      })
+    }
+    status = 206
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': type,
+    'Content-Length': String(end - start + 1),
+    'Accept-Ranges': 'bytes'
+  }
+  if (status === 206) headers['Content-Range'] = `bytes ${start}-${end}/${size}`
+
+  const stream = Readable.toWeb(
+    createReadStream(path, { start, end })
+  ) as unknown as ReadableStream<Uint8Array>
+  return new Response(stream, { status, headers })
+}
+
 function registerMediaProtocol(): void {
   protocol.handle('media', (request) => {
     // media://local/F%3A/path/to/file.flac — see `mediaUrl` in the preload for
@@ -70,6 +144,7 @@ function registerMediaProtocol(): void {
     if (!existsSync(decoded)) {
       return new Response(`Arquivo não encontrado: ${decoded}`, { status: 404 })
     }
+    if (needsManualRead(decoded)) return readFromDisk(decoded, request)
     return net.fetch(pathToFileURL(decoded).toString())
   })
 }
@@ -138,6 +213,12 @@ app.whenReady().then(() => {
   registerIpc(() => mainWindow)
   createWindow()
 
+  // the local origin the YouTube embed needs; a failure here only costs
+  // in-app video, so it must never keep the app from opening
+  void startPlayerServer().catch((err) =>
+    console.error('[youtube] player local não subiu:', err)
+  )
+
   // mirror lab job progress into the local DB while the container works
   jobTimer = setInterval(() => {
     void refreshAllRunning().then((jobs) => {
@@ -158,5 +239,6 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   if (jobTimer) clearInterval(jobTimer)
+  stopPlayerServer()
   closeDb()
 })
