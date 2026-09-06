@@ -35,8 +35,15 @@ SIL Open Font License 1.1
 
   Bravura — https://github.com/steinbergmedia/bravura
   Copyright (c) Steinberg Media Technologies GmbH
-  Bundled at src/renderer/public/font/. The OFL text and FONTLOG ship alongside
-  it. "Bravura" is a Reserved Font Name: a modified version must be renamed.
+  Redistributed inside the alphaTab package and copied into the build by its
+  Vite plugin, together with the SoundFont below. The OFL text and FONTLOG ship
+  alongside it. "Bravura" is a Reserved Font Name: a modified version must be
+  renamed.
+
+  Sonivox EAS SoundFont — Apache-2.0
+  Copyright (c) Sonic Network Inc., via the Android Open Source Project
+  Same story: it arrives with alphaTab and is copied in at build time, which is
+  why it is not committed to this repository.
 
 --------------------------------------------------------------------------------
 Public domain / other

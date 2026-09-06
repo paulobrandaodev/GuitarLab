@@ -90,9 +90,12 @@ WAV, the GP header). `02.-Master Of Puppets.wav` and
 `master_of_puppets_metallica_gp_v2.gp` become one song, automatically. With no
 tags it falls back to a normalised filename with fuzzy comparison.
 
-> **Note:** the interface is currently in Brazilian Portuguese. English and
-> Spanish are on the way — see [Contributing](#contributing) if you would like
-> to help.
+> **On the interface language:** GuitarLab picks its language from your
+> operating system and you can override it in Settings. The translation itself
+> is partway there — the machinery, the shared labels and the Settings screen
+> speak all three languages, and the rest of the screens are still Portuguese
+> only. Migrating a screen is self-contained and a genuinely useful first
+> contribution; see [CONTRIBUTING.md](CONTRIBUTING.md#translations).
 
 ---
 

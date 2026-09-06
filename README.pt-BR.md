@@ -72,6 +72,15 @@ O casamento entre tablatura e áudio é **por metadado** (ID3 no MP3, RIFF INFO 
 
 ---
 
+> **Sobre o idioma da interface:** o GuitarLab pega o idioma do sistema
+> operacional e dá para trocar em Ajustes. A tradução está no meio do caminho: o
+> encanamento, os rótulos compartilhados e a tela de Ajustes já falam os três
+> idiomas, e o resto das telas continua só em português. Migrar uma tela é uma
+> tarefa fechada em si e uma primeira contribuição bem útil; veja o
+> [CONTRIBUTING.md](CONTRIBUTING.md#translations).
+
+---
+
 ## Telas
 
 | Tela | O que faz |

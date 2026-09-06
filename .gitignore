@@ -8,9 +8,20 @@ dist/
 *.db-shm
 .env
 .env.bak
+
+# The settings store lives in userData, not here — but a stray copy in the
+# repository would hold encrypted API keys, so it never gets committed.
+settings.json
+paths.json
 __pycache__/
 *.pyc
 lab/models/
+
+# Copied out of the alphaTab package by its Vite plugin on every build, so this
+# is generated output rather than source. Both reappear after 'npm run build',
+# byte for byte, which is why they are not worth 6 MB of repository.
+src/renderer/public/soundfont/
+src/renderer/public/font/
 
 # áudio e tablaturas são a biblioteca local do usuário, não código
 songs/

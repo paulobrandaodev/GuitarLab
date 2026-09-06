@@ -93,8 +93,12 @@ RIFF INFO en WAV, la cabecera del GP). `02.-Master Of Puppets.wav` y
 automáticamente. Sin etiquetas, recurre al nombre de archivo normalizado con
 comparación difusa.
 
-> **Nota:** la interfaz está actualmente en portugués de Brasil. El inglés y el
-> español están en camino — mira [Contribuir](#contribuir) si quieres ayudar.
+> **Sobre el idioma de la interfaz:** GuitarLab toma el idioma de tu sistema
+> operativo y puedes cambiarlo en Ajustes. La traducción está a medio camino: la
+> maquinaria, las etiquetas compartidas y la pantalla de Ajustes hablan los tres
+> idiomas, y el resto de las pantallas siguen solo en portugués. Migrar una
+> pantalla es una tarea autocontenida y una primera contribución muy útil; mira
+> [CONTRIBUTING.md](CONTRIBUTING.md#translations).
 
 ---
 
