@@ -23,6 +23,7 @@
     "db:studio": "drizzle-kit studio",
     "postinstall": "electron-builder install-app-deps",
     "lab:up": "docker compose up -d",
+    "lab:up:gpu": "docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d",
     "lab:down": "docker compose down",
     "lab:logs": "docker compose logs -f forge-lab",
     "pack": "electron-vite build && electron-builder --dir",
@@ -32,8 +33,11 @@
     "test:tabscroll": "electron scripts/test-tabscroll.mjs",
     "test:stretch": "electron scripts/test-stretch.mjs",
     "test:player": "electron scripts/test-player.mjs",
-    "test": "npm run typecheck && npm run test:stems && npm run test:setlist && npm run test:sources && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:chordmap && npm run test:stream && npm run test:ytplayer && npm run test:tabscroll && npm run test:media && npm run build && npm run test:stretch && npm run test:player && npm run test:llm",
+    "test:ci": "npm run typecheck && npm run test:settings && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:ytplayer && npm run build && npm run test:secrets && npm run test:stretch",
+    "test": "npm run typecheck && npm run test:settings && npm run test:stems && npm run test:setlist && npm run test:sources && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:chordmap && npm run test:stream && npm run test:ytplayer && npm run test:tabscroll && npm run test:media && npm run build && npm run test:secrets && npm run test:stretch && npm run test:player && npm run test:llm",
     "test:ytplayer": "tsx --tsconfig tsconfig.node.json scripts/test-ytplayer.ts",
+    "test:settings": "tsx --tsconfig tsconfig.node.json scripts/test-settings.ts",
+    "test:secrets": "electron scripts/test-secrets.mjs",
     "test:stems": "tsx --tsconfig tsconfig.node.json scripts/test-stems.ts",
     "test:stream": "tsx --tsconfig tsconfig.node.json scripts/test-stream.ts",
     "test:setlist": "tsx --tsconfig tsconfig.node.json scripts/test-setlist.ts",
@@ -86,7 +90,21 @@
       "createDesktopShortcut": true
     },
     "portable": {
-      "artifactName": "GuitarLab-${version}-portatil.${ext}"
+      "artifactName": "GuitarLab-${version}-portable.${ext}"
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb", "arch": ["x64"] }
+      ],
+      "category": "AudioVideo",
+      "synopsis": "Guitar practice: setlists, tabs, stems, chord charts and tones",
+      "description": "Desktop app for consolidating a band setlist and practising guitar: Guitar Pro tablature, YouTube videos, chord sheets, chords detected from audio, tuning, GPU stem separation and per-section progress."
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "paulobrandaodev",
+      "repo": "GuitarLab"
     }
   },
   "dependencies": {
