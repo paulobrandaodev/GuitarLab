@@ -1,29 +1,63 @@
 # GuitarLab
 
+[English](README.md) · **Português** · [Español](README.es.md)
+
 App desktop para consolidar o setlist da banda e estudar guitarra — tablaturas Guitar Pro, vídeos do YouTube, cifra/letra, cifra automática detectada do áudio, afinação, separação de stems na GPU e controle de progresso por trecho.
 
 Electron + React + TypeScript + SQLite. Visual dark neumorphism.
 
 ---
 
-## Rodando
+## Instalar
+
+Baixe um instalador em [Releases](https://github.com/paulobrandaodev/GuitarLab/releases):
+
+| Sistema | Arquivo |
+|---|---|
+| Windows | `GuitarLab-<versão>-instalador.exe`, ou a versão portátil |
+| Linux | `.AppImage` (não instala nada) ou `.deb` |
+
+**Um único requisito obrigatório: o [FFmpeg](https://ffmpeg.org/download.html)**
+instalado e no `PATH`. Sem ele a importação de áudio falha — o app avisa logo na
+primeira abertura. Todo o resto é opcional.
+
+**Os builds de Windows não são assinados.** O SmartScreen vai dizer "editor
+desconhecido": clique em *Mais informações* → *Executar assim mesmo*. Um
+certificado custa US$ 200–400 por ano, o que não se justifica num projeto livre
+feito por hobby. Se isso te incomoda, compile você mesmo — instruções abaixo.
+
+### Do código-fonte
 
 ```bash
+git clone https://github.com/paulobrandaodev/GuitarLab.git
+cd GuitarLab
 npm install          # já compila o better-sqlite3 para o Electron
 npm run dev          # desenvolvimento, com hot reload
 npm run build        # gera out/
 npm start            # roda o build
 ```
 
-Laboratório de áudio (opcional, precisa de Docker + GPU NVIDIA):
+Node 22+. Não há passo de migração de banco: o schema é criado na primeira
+abertura.
+
+### Laboratório de áudio (opcional)
+
+Separação de stems e análise automática de BPM/tom/acordes rodam num container.
+**O app funciona inteiro sem ele** — é a única parte que precisa de Docker.
 
 ```bash
-npm run lab:up       # sobe o container CUDA
+npm run lab:up       # CPU, funciona em qualquer máquina
+npm run lab:up:gpu   # NVIDIA, precisa do NVIDIA Container Toolkit
 npm run lab:logs     # acompanha
 npm run lab:down     # derruba
 ```
 
-**O app funciona inteiro sem o container.** Só a separação de stems e a análise automática de BPM/tom/acordes dependem dele.
+Aviso: a imagem base é enorme (a final fica em 12–15 GB), mais os pesos dos
+modelos baixados no primeiro uso. Vale se você quer stems; se não, pule.
+
+Se suas pastas de mídia não estão no repositório, copie
+[.env.compose.example](.env.compose.example) para `.env` ao lado do
+`docker-compose.yml` e aponte para as mesmas pastas escolhidas em Ajustes.
 
 ---
 
@@ -53,34 +87,34 @@ O casamento entre tablatura e áudio é **por metadado** (ID3 no MP3, RIFF INFO 
 
 ---
 
-## Configuração (`.env`)
+## Configuração
 
-O app abre e funciona com o `.env` vazio — cada integração se desliga sozinha e mostra o que falta em **Ajustes**.
+Abra o app, vá em **Ajustes** e cole as chaves que você tiver. **Toda integração
+é opcional** — cada uma que faltar apenas desliga o recurso dela e diz o que está
+faltando.
 
-```bash
-SPOTIFY_CLIENT_ID=            # developer.spotify.com/dashboard (PKCE, sem secret)
-SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
-YOUTUBE_API_KEY=              # console.cloud.google.com → YouTube Data API v3
+As chaves são criptografadas pelo próprio sistema operacional (DPAPI no Windows,
+Keychain no macOS, libsecret no Linux) e nunca saem da máquina. Se o sistema se
+recusar a criptografar — um Linux sem keyring, por exemplo — o app não grava
+nada, em vez de gravar em texto puro, e explica o porquê.
 
-LLM_PROVIDER=gemini           # gemini | groq | ollama
-LLM_FALLBACK_PROVIDER=ollama  # usado quando o principal falha
-GEMINI_API_KEY=
-GEMINI_MODEL=gemini-3.5-flash
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=...
+| Integração | Para que serve | Onde pegar a chave |
+|---|---|---|
+| **Gemini / OpenAI / Groq** | Plano de treino, análise de técnica, patches de timbre | [aistudio.google.com](https://aistudio.google.com/apikey) · [platform.openai.com](https://platform.openai.com/api-keys) · [console.groq.com](https://console.groq.com/keys) |
+| **Ollama** | O mesmo, rodando local — sem chave, nada sai da sua máquina | [ollama.com](https://ollama.com) |
+| **YouTube** | Buscar aulas, backing tracks e playthroughs | [console.cloud.google.com](https://console.cloud.google.com) → YouTube Data API v3 |
+| **Spotify** | Metadados e comandar o Spotify que já está aberto | [developer.spotify.com](https://developer.spotify.com/dashboard) |
 
-GPTABS_DIR=...                # pastas de mídia
-SONGS_DIR=...
-STEMS_DIR=...
-FFMPEG_PATH=                  # vazio = usa o do PATH
-FORGE_LAB_URL=http://127.0.0.1:8756
-DEMUCS_MODEL=htdemucs_6s      # htdemucs = 4 stems (melhor qualidade)
-DEMUCS_SEGMENT=7              # chunking para GPUs de 8 GB
-```
+**Não precisam de chave:** LRCLIB (letra sincronizada), MusicBrainz, archive.org
+(download de áudio), alphaTab e toda a IA local.
 
-**Não precisam de chave:** LRCLIB (letra sincronizada), MusicBrainz, alphaTab e toda a IA local.
+Rodando a partir de um clone, um `.env` na raiz também funciona — copie o
+[.env.example](.env.example). A precedência é: variável de ambiente > o que você
+salvou em Ajustes > `.env` > padrão. A tela de Ajustes mostra qual delas está
+valendo em cada campo, para que uma variável de ambiente sobrepondo em silêncio
+uma chave recém-colada seja visível em vez de incompreensível.
 
-Tokens OAuth ficam criptografados com `safeStorage` (DPAPI no Windows), nunca no `.env`.
+Tokens OAuth ficam criptografados no banco com `safeStorage`, nunca no `.env`.
 
 ---
 
@@ -129,6 +163,29 @@ Tokens OAuth ficam criptografados com `safeStorage` (DPAPI no Windows), nunca no
 **O renderer roda em `app://`, não `file://`.** Sob `file://` o navegador bloqueia Web Workers e blobs, que o alphaTab precisa para diagramar a partitura fora da thread principal.
 
 **Uma trilha por vez na partitura.** Master of Puppets tem 5 guitarras em 425 compassos; desenhar todas leva ~27s e fica ilegível. O padrão é a trilha principal do instrumento escolhido, e o painel lateral adiciona as outras sob demanda. Música de tamanho normal renderiza em ~2s.
+
+**O player do YouTube mora dois quadros abaixo.** O IFrame player se recusa a
+iniciar em qualquer origem que não seja http(s), e reescrever Origin/Referer no
+processo principal não resolve: ele valida a página que o embute por
+`postMessage` contra a origem real. Então um servidor http local de uma página só
+entrega a página que carrega o player, e o renderer embute essa. O app inteiro
+**não** é movido para essa origem de propósito — `app://` é o que faz os workers
+do alphaTab, o soundfont e os fetches `media://` funcionarem.
+
+**Texto de Guitar Pro é recuperado, não confiado.** GP3/GP4/GP5 guardam strings
+como bytes crus na code page da máquina de quem criou — em tablatura brasileira e
+europeia, quase sempre Windows-1252. O alphaTab decodifica como UTF-8, então cada
+um desses bytes vira U+FFFD, no cabeçalho da partitura e em cada marcador de
+trecho que o importador copia para o banco. A detecção olha o *texto decodificado*,
+não os bytes: um arquivo GP7 é UTF-8 de verdade e não pode ser mexido, e uma
+heurística sobre bytes não distingue os dois numa string curta como "Solo".
+
+**Chaves de API moram fora do banco.** O banco é a sua biblioteca — o arquivo que
+você copia entre máquinas. O texto cifrado do `safeStorage` é preso ao usuário do
+sistema, então chaves guardadas lá dentro decifrariam como lixo na outra máquina,
+sem como distinguir isso de "chave errada". Elas ficam no `settings.json` ao lado.
+Tokens OAuth são a exceção e ficam no banco: um token é derivável — um clique em
+Conectar gera outro — e uma chave que você colou não é.
 
 **Volume equalizado entre fontes.** O FFmpeg mede loudness EBU R128 na importação (Master of Puppets deu −16,0 LUFS; The Trooper, −9,3) e o app compensa o ganho, para trocar de fonte no meio de um loop sem levar susto.
 
@@ -191,3 +248,33 @@ npx esbuild scripts/verify.ts --bundle --platform=node --format=esm --target=nod
 ```
 
 Roda o pipeline inteiro contra os arquivos reais: parse dos três formatos GP, leitura de tags, importação, casamento tab↔áudio, classificador do YouTube, LRCLIB, cadeia de IA com fallback e fila de estudo.
+
+---
+
+## Contribuir
+
+Pull requests são bem-vindos — de devs e de guitarristas. Um bom relato de como
+algo se comporta enquanto você está de fato estudando vale tanto quanto um patch.
+Veja o [CONTRIBUTING.md](CONTRIBUTING.md).
+
+O que mais ajuda agora: **traduções** (a interface ainda é só em português),
+**capturas de tela**, e **testes no Linux e no macOS** — o app só foi realmente
+exercitado no Windows.
+
+---
+
+## Apoie
+
+Se o GuitarLab te for útil, você pode [me pagar um café no
+Ko-fi](https://ko-fi.com/paulobrandaodev). Totalmente opcional, e nunca vai
+travar nenhum recurso — isso aqui continua livre e aberto de qualquer jeito.
+
+---
+
+## Licença
+
+MIT — veja o [LICENSE](LICENSE). Componentes de terceiros e seus termos estão no
+[NOTICE](NOTICE), inclusive o porquê de o FFmpeg **não** ser empacotado junto.
+
+O GuitarLab não distribui música, tablatura nem qualquer material protegido. Ele
+organiza os arquivos que você já tem.
