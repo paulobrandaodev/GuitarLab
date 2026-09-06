@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push supersedes an in-flight run on the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # better-sqlite3 is a native module and `postinstall` rebuilds it against
+      # Electron, so this cannot be cross-compiled — hence the OS matrix.
+      - name: Install
+        run: npm ci
+
+      # Several tests boot a real Electron window. On a headless runner that
+      # needs a virtual display; without it they fail with no useful message.
+      - name: Test (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum npm run test:ci
+
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        run: npm run test:ci
+
+      # `npm test` is deliberately not what runs here. Half of that battery
+      # asserts against the maintainer's own library, calls real AI providers,
+      # or needs the GPU container — all correct locally, none of it reproducible
+      # on a runner. `test:ci` is the subset that depends on nothing external.
