@@ -81,6 +81,11 @@ Se suas pastas de mídia não estão no repositório, copie
 2. Abra o app → **Importar pastas**.
 3. As músicas aparecem com afinação, andamento, tonalidade, seções, letra e acordes já extraídos dos arquivos Guitar Pro.
 4. Adicione ao setlist, abra **Estudar** e comece.
+5. Sem arquivo nenhum? **Nova música** e **Novo setlist**, na tela de Setlist,
+   criam os dois na mão — só o título do setlist, e o título e o artista da
+   música, são obrigatórios. O resto (álbum, duração, tom, andamento,
+   afinação…) fica para quando você souber, ou vem sozinho quando a tablatura
+   ou o áudio chegar.
 
 O casamento entre tablatura e áudio é **por metadado** (ID3 no MP3, RIFF INFO no WAV, cabeçalho do GP). `02.-Master Of Puppets.wav` e `master_of_puppets_metallica_gp_v2.gp` viram uma música só, automaticamente. Sem tags, cai para nome de arquivo normalizado com comparação fuzzy.
 
@@ -247,6 +252,8 @@ O banco fica em `%APPDATA%/guitarlab/guitarlab.db` — um arquivo, backup por c�
 ```bash
 npm test               # typecheck + toda a bateria abaixo
 npm run test:setlist   # setlists, bandas, exclusão, sincronia da playlist, limpeza de títulos
+npm run test:manual    # os diálogos de novo setlist e nova música, renderizados
+npm run test:newsong   # os mesmos diálogos preenchidos, no renderer de verdade (precisa de build)
 npm run test:sources   # links do UG, ranking e busca real no archive.org
 npm run test:chords    # transposição, leitura da trilha e validação do JSON do lab
 npm run test:tempo     # grade de batidas, encaixe e o cabeçote sem acumular erro no loop

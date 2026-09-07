@@ -1,6 +1,7 @@
 import { eq, and, desc, asc, isNull, sql } from 'drizzle-orm'
 import { getDb, getSqlite, schema } from './client'
 import { deleteSetlistRow, syncSetlistItems, type SyncResult } from './setlists'
+import { findDuplicateSong, insertSongRow, type DuplicateSong } from './songs'
 import { computeMastery, rollupMastery, setlistReadiness, statusFromMastery } from '../practice/readiness'
 import { buildDailyQueue, gradeFromSession, reviewSrs, type QueueCandidate } from '../practice/srs'
 import { PRACTICE_INSTRUMENT } from '@shared/types'
@@ -8,6 +9,8 @@ import type {
   ChordMapView,
   DailyQueueItem,
   Instrument,
+  NewSetlistInput,
+  NewSongInput,
   ProgressStatus,
   ProgressView,
   SectionView,
@@ -197,6 +200,18 @@ export function deleteSong(id: number): void {
   getDb().delete(schema.songs).where(eq(schema.songs.id, id)).run()
 }
 
+/** A song typed in by hand. Title and artist are required; the rest is not. */
+export function createSong(input: NewSongInput): SongView {
+  const id = insertSongRow(getSqlite(), input, PRACTICE_INSTRUMENT)
+  if (input.setlistId) addSongToSetlist(input.setlistId, id)
+  return getSong(id)!
+}
+
+/** The library song a hand-typed title and artist would duplicate, if any. */
+export function findSongDuplicate(title: string, artist: string): DuplicateSong | null {
+  return findDuplicateSong(getSqlite(), title, artist)
+}
+
 /* --------------------------------------------------------------- sections */
 
 export function listSections(songId: number): SectionView[] {
@@ -280,14 +295,29 @@ export function getSetlistItems(setlistId: number): SetlistItemView[] {
   }))
 }
 
+/**
+ * A new, empty setlist.
+ *
+ * Only the name is required — a set typed in the morning of the show has a
+ * name and nothing else, and the date, the venue and the notes are things the
+ * user fills in when they know them.
+ */
 export function createSetlist(
   name: string,
   band?: string | null,
-  spotifyPlaylistId?: string | null
+  spotifyPlaylistId?: string | null,
+  extra?: Omit<NewSetlistInput, 'name' | 'band'>
 ): SetlistView {
   const row = getDb()
     .insert(schema.setlists)
-    .values({ name, band: band ?? null, spotifyPlaylistId: spotifyPlaylistId ?? null })
+    .values({
+      name,
+      band: band ?? null,
+      spotifyPlaylistId: spotifyPlaylistId ?? null,
+      eventDate: extra?.eventDate ?? null,
+      venue: extra?.venue ?? null,
+      notes: extra?.notes ?? null
+    })
     .returning()
     .get()
   return listSetlists().find((s) => s.id === row.id)!

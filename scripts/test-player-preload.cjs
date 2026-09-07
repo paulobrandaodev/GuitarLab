@@ -54,6 +54,8 @@ contextBridge.exposeInMainWorld('api', {
   songs: {
     list: async () => stub.songs ?? [],
     get: async () => stub.song ?? null,
+    create: none,
+    findDuplicate: none,
     update: none,
     remove: none,
     media: async () => stub.media ?? [],

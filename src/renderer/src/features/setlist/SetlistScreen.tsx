@@ -20,16 +20,29 @@ import {
   IconClock,
   IconSpotify,
   IconGrip,
+  IconPlus,
   IconTrash,
   IconDownload,
   IconWave,
   INSTRUMENT_ICON
 } from '../../components/ui/icons'
-import { AddToSetlistDialog, ImportPlaylistDialog, ConfirmDialog } from './SetlistDialogs'
+import {
+  AddToSetlistDialog,
+  ImportPlaylistDialog,
+  ConfirmDialog,
+  NewSetlistDialog,
+  NewSongDialog
+} from './SetlistDialogs'
 import { SourcesDialog } from './SourcesDialog'
 import { api, formatDuration, formatTotalDuration, formatRelative } from '../../lib/api'
 import { useNav } from '../../App'
-import type { SetlistView, SetlistItemView, SongView, ImportReport } from '@shared/types'
+import type {
+  SetlistView,
+  SetlistItemView,
+  SongView,
+  ImportReport,
+  NewSetlistInput
+} from '@shared/types'
 
 import {
   sortSongs,
@@ -396,6 +409,9 @@ export function SetlistScreen(): ReactNode {
   const [overIndex, setOverIndex] = useState<number | null>(null)
   const [bands, setBands] = useState<string[]>([])
   const [showImport, setShowImport] = useState(false)
+  /** The two by-hand dialogs: a set with nothing in it yet, a song with no file yet. */
+  const [showNewSetlist, setShowNewSetlist] = useState(false)
+  const [showNewSong, setShowNewSong] = useState(false)
   /** Song waiting to be filed into a setlist from the "Todas" tab. */
   const [addingSong, setAddingSong] = useState<SongView | null>(null)
   /** Song whose Guitar Pro / audio sources are being looked up. */
@@ -435,6 +451,34 @@ export function SetlistScreen(): ReactNode {
     } finally {
       setImporting(false)
     }
+  }
+
+  /**
+   * A setlist created by hand becomes the active one.
+   *
+   * Someone who just typed a name is about to fill that set with songs, and
+   * every add-song path in this screen files into the active set by default.
+   */
+  const createSetlist = async (input: NewSetlistInput): Promise<void> => {
+    const created = await api.setlists.create(input.name, input.band ?? null, {
+      eventDate: input.eventDate ?? null,
+      venue: input.venue ?? null,
+      notes: input.notes ?? null
+    })
+    await api.setlists.setActive(created.id)
+    await refresh()
+    setView('setlist')
+    show(str.manual.setlistCreated(created.name), 'ok')
+  }
+
+  /** Land on the tab where the new song is actually visible. */
+  const songCreated = async (song: SongView, setlist: SetlistView | null): Promise<void> => {
+    await refresh()
+    setView(setlist && setlist.id === activeId ? 'setlist' : 'todas')
+    show(
+      setlist ? str.manual.songCreatedIn(song.title, setlist.name) : str.manual.songCreated(song.title),
+      'ok'
+    )
   }
 
   const addToSetlist = async (songId: number, setlistId: number): Promise<void> => {
@@ -583,6 +627,18 @@ export function SetlistScreen(): ReactNode {
           ]}
         />
         <div className="flex flex-wrap gap-2">
+          <NeuButton variant="accent" onClick={() => setShowNewSong(true)}>
+            <span className="flex items-center gap-2">
+              <IconPlus width={15} height={15} />
+              {str.manual.newSong}
+            </span>
+          </NeuButton>
+          <NeuButton onClick={() => setShowNewSetlist(true)}>
+            <span className="flex items-center gap-2">
+              <IconSetlist width={15} height={15} />
+              {str.manual.newSetlist}
+            </span>
+          </NeuButton>
           <NeuButton onClick={runImport} disabled={importing}>
             <span className="flex items-center gap-2">
               {importing ? <Spinner size={15} /> : <IconImport width={16} height={16} />}
@@ -628,13 +684,16 @@ export function SetlistScreen(): ReactNode {
                 : 'Você tem músicas na biblioteca. Troque para "Todas" e adicione ao setlist.'
             }
             action={
-              allSongs.length === 0 ? (
-                <NeuButton variant="accent" onClick={runImport} disabled={importing}>
-                  Importar agora
-                </NeuButton>
-              ) : (
-                <NeuButton onClick={() => setView('todas')}>Ver todas as músicas</NeuButton>
-              )
+              <div className="flex flex-wrap justify-center gap-2">
+                {allSongs.length === 0 ? (
+                  <NeuButton variant="accent" onClick={runImport} disabled={importing}>
+                    Importar agora
+                  </NeuButton>
+                ) : (
+                  <NeuButton onClick={() => setView('todas')}>Ver todas as músicas</NeuButton>
+                )}
+                <NeuButton onClick={() => setShowNewSong(true)}>{str.manual.newSong}</NeuButton>
+              </div>
             }
           />
         ) : (
@@ -714,6 +773,7 @@ export function SetlistScreen(): ReactNode {
                     {str.setlist.import}
                   </NeuButton>
                   <NeuButton onClick={() => go({ name: 'settings' })}>{str.setlist.chooseFolders}</NeuButton>
+                  <NeuButton onClick={() => setShowNewSong(true)}>{str.manual.newSong}</NeuButton>
                 </div>
               }
             />
@@ -830,6 +890,24 @@ export function SetlistScreen(): ReactNode {
           }
           onConfirm={() => deleteSetlist(deleting)}
           onClose={() => setDeleting(null)}
+        />
+      )}
+
+      {showNewSetlist && (
+        <NewSetlistDialog
+          bands={bands}
+          onCreate={createSetlist}
+          onClose={() => setShowNewSetlist(false)}
+        />
+      )}
+
+      {showNewSong && (
+        <NewSongDialog
+          setlists={setlists}
+          defaultSetlistId={activeId}
+          onCreated={(song, setlist) => void songCreated(song, setlist)}
+          onOpenSong={(songId) => go({ name: 'song', songId })}
+          onClose={() => setShowNewSong(false)}
         />
       )}
 

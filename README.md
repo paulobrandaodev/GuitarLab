@@ -93,6 +93,10 @@ pasted is visible rather than baffling.
 3. Songs appear with tuning, tempo, key, sections, lyrics and chords already
    pulled out of the Guitar Pro files.
 4. Add them to a setlist, open **Estudar**, and start.
+5. No files at all? **Nova música** and **Novo setlist**, on the setlist screen,
+   create both by hand — a setlist needs only a name, a song only a title and an
+   artist. Everything else (album, duration, key, tempo, tuning…) can wait, or
+   arrives on its own when the tab or the audio does.
 
 Matching tablature to audio happens **by metadata** (ID3 in MP3, RIFF INFO in
 WAV, the GP header). `02.-Master Of Puppets.wav` and

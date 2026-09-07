@@ -263,9 +263,68 @@ export const ptBR = {
     chooseFolders: 'Escolher pastas'
   },
 
+  /**
+   * Adding a setlist or a song by hand, with no file to import.
+   *
+   * What is required here is the least that makes the thing exist and findable
+   * later: a name for the setlist, a title and an artist for the song. All the
+   * rest is what a file would have carried, and can be filled in when it shows
+   * up.
+   */
+  manual: {
+    newSetlist: 'Novo setlist',
+    newSong: 'Nova música',
+    addSong: 'Adicionar música',
+    required: 'obrigatório',
+    create: 'Criar',
+    createAndOpen: 'Criar e abrir',
+    moreFields: 'mais campos',
+    fewerFields: 'menos campos',
+
+    setlistHint: 'Só o nome é obrigatório. Data, local e anotações você preenche quando souber.',
+    setlistName: 'Nome do setlist',
+    setlistNamePlaceholder: 'ex.: Show do Sesc',
+    band: 'Banda',
+    bandPlaceholder: 'ex.: Cover Metallica',
+    eventDate: 'Data do show',
+    venue: 'Local',
+    venuePlaceholder: 'ex.: Sesc Pompeia',
+    setlistCreated: (name: string) => `Setlist "${name}" criado e ativo`,
+
+    songHint:
+      'Só título e artista são obrigatórios — o resto o app preenche sozinho quando você importar a tablatura ou o áudio.',
+    songTitle: 'Título',
+    songTitlePlaceholder: 'ex.: Master of Puppets',
+    artist: 'Artista',
+    artistPlaceholder: 'ex.: Metallica',
+    album: 'Álbum',
+    year: 'Ano',
+    genre: 'Gênero',
+    duration: 'Duração',
+    durationInvalid: 'Não entendi a duração — escreva como no player, tipo 4:32.',
+    key: 'Tom',
+    bpm: 'BPM',
+    timeSignature: 'Compasso',
+    tuning: 'Afinação',
+    noTuning: '— nenhuma —',
+    capo: 'Capotraste',
+    notes: 'Anotações',
+    addTo: 'Já colocar no setlist',
+    onlyLibrary: '— só na biblioteca —',
+    songCreated: (title: string) => `"${title}" entrou na biblioteca`,
+    songCreatedIn: (title: string, setlist: string) => `"${title}" entrou em ${setlist}`,
+    duplicate: (title: string, artist: string) =>
+      `Já existe "${title}", de ${artist}, na sua biblioteca.`,
+    duplicateOpen: 'Abrir a que já existe',
+    duplicateAnyway: 'Criar assim mesmo'
+  },
+
   /** Errors raised in the main process that reach the interface. */
   errors: {
     songNotFound: 'Música não encontrada',
+    titleRequired: 'A música precisa de um título',
+    artistRequired: 'A música precisa de um artista',
+    setlistNameRequired: 'O setlist precisa de um nome',
     fileNotFound: (path: string) => `Arquivo não encontrado: ${path}`,
     windowUnavailable: 'Janela indisponível',
     noLocalAudio: 'Essa música não tem arquivo de áudio local importado',

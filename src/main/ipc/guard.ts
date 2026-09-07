@@ -36,6 +36,21 @@ export function asOptionalString(value: unknown, field: string, maxLength = 4096
   return asString(value, field, maxLength)
 }
 
+/**
+ * A number the user may have left blank.
+ *
+ * Empty is a first-class answer in the "nova música" form — a song with no BPM
+ * yet is normal — so an absent value is `null`, and only a value that is
+ * present and not a number is an error.
+ */
+export function asOptionalNumber(value: unknown, field: string): number | null {
+  if (value === null || value === undefined || value === '') return null
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`${field} must be a number`)
+  }
+  return value
+}
+
 export function asInt(value: unknown, field: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value)) {
     throw new Error(`${field} must be an integer`)

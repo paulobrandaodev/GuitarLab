@@ -246,8 +246,61 @@ export const es: Catalog = {
     chooseFolders: 'Elegir carpetas'
   },
 
+  manual: {
+    newSetlist: 'Nuevo setlist',
+    newSong: 'Nueva canción',
+    addSong: 'Agregar canción',
+    required: 'obligatorio',
+    create: 'Crear',
+    createAndOpen: 'Crear y abrir',
+    moreFields: 'más campos',
+    fewerFields: 'menos campos',
+
+    setlistHint:
+      'Sólo el nombre es obligatorio. La fecha, el lugar y las notas se completan cuando los sepas.',
+    setlistName: 'Nombre del setlist',
+    setlistNamePlaceholder: 'ej.: Show en el Sesc',
+    band: 'Banda',
+    bandPlaceholder: 'ej.: Covers de Metallica',
+    eventDate: 'Fecha del show',
+    venue: 'Lugar',
+    venuePlaceholder: 'ej.: Sesc Pompeia',
+    setlistCreated: (name: string) => `Setlist "${name}" creado y activo`,
+
+    songHint:
+      'Sólo el título y el artista son obligatorios — el resto lo completa la aplicación cuando importes la tablatura o el audio.',
+    songTitle: 'Título',
+    songTitlePlaceholder: 'ej.: Master of Puppets',
+    artist: 'Artista',
+    artistPlaceholder: 'ej.: Metallica',
+    album: 'Álbum',
+    year: 'Año',
+    genre: 'Género',
+    duration: 'Duración',
+    durationInvalid:
+      'No entendí la duración — escríbela como la muestra un reproductor, por ejemplo 4:32.',
+    key: 'Tono',
+    bpm: 'BPM',
+    timeSignature: 'Compás',
+    tuning: 'Afinación',
+    noTuning: '— ninguna —',
+    capo: 'Cejilla',
+    notes: 'Notas',
+    addTo: 'Ponerla ya en el setlist',
+    onlyLibrary: '— sólo en la biblioteca —',
+    songCreated: (title: string) => `"${title}" está en la biblioteca`,
+    songCreatedIn: (title: string, setlist: string) => `"${title}" entró en ${setlist}`,
+    duplicate: (title: string, artist: string) =>
+      `"${title}", de ${artist}, ya está en tu biblioteca.`,
+    duplicateOpen: 'Abrir la que ya tienes',
+    duplicateAnyway: 'Crearla igual'
+  },
+
   errors: {
     songNotFound: 'Canción no encontrada',
+    titleRequired: 'La canción necesita un título',
+    artistRequired: 'La canción necesita un artista',
+    setlistNameRequired: 'El setlist necesita un nombre',
     fileNotFound: (path: string) => `Archivo no encontrado: ${path}`,
     windowUnavailable: 'No hay ventana disponible',
     noLocalAudio: 'Esta canción no tiene ningún archivo de audio local importado',

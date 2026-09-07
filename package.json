@@ -33,8 +33,9 @@
     "test:tabscroll": "electron scripts/test-tabscroll.mjs",
     "test:stretch": "electron scripts/test-stretch.mjs",
     "test:player": "electron scripts/test-player.mjs",
-    "test:ci": "npm run typecheck && npm run test:i18n && npm run test:settings && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:ytplayer && npm run build && npm run test:secrets && npm run test:stretch",
-    "test": "npm run typecheck && npm run test:i18n && npm run test:settings && npm run test:stems && npm run test:setlist && npm run test:sources && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:chordmap && npm run test:stream && npm run test:ytplayer && npm run test:tabscroll && npm run test:media && npm run build && npm run test:secrets && npm run test:stretch && npm run test:player && npm run test:llm",
+    "test:newsong": "electron scripts/test-newsong.mjs",
+    "test:ci": "npm run typecheck && npm run test:i18n && npm run test:settings && npm run test:manual && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:ytplayer && npm run build && npm run test:secrets && npm run test:stretch && npm run test:newsong",
+    "test": "npm run typecheck && npm run test:i18n && npm run test:settings && npm run test:stems && npm run test:setlist && npm run test:manual && npm run test:sources && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:chordmap && npm run test:stream && npm run test:ytplayer && npm run test:tabscroll && npm run test:media && npm run build && npm run test:secrets && npm run test:stretch && npm run test:player && npm run test:newsong && npm run test:llm",
     "test:ytplayer": "tsx --tsconfig tsconfig.node.json scripts/test-ytplayer.ts",
     "test:i18n": "tsx --tsconfig tsconfig.node.json scripts/test-i18n.ts",
     "test:settings": "tsx --tsconfig tsconfig.node.json scripts/test-settings.ts",
@@ -49,6 +50,7 @@
     "test:sort": "tsx --tsconfig tsconfig.node.json scripts/test-sort.ts",
     "test:tone": "tsx --tsconfig tsconfig.node.json scripts/test-tone.ts",
     "test:markdown": "tsx --tsconfig tsconfig.web.json scripts/test-markdown.tsx",
+    "test:manual": "tsx --tsconfig tsconfig.web.json scripts/test-manual.tsx",
     "test:chordmap": "esbuild scripts/verify-chords.ts --bundle --platform=node --format=esm --target=node22 --outfile=out/verify-chords/index.js --external:electron --external:better-sqlite3 --alias:@shared=./src/shared && electron out/verify-chords"
   },
   "build": {

@@ -245,8 +245,60 @@ export const en: Catalog = {
     chooseFolders: 'Choose folders'
   },
 
+  manual: {
+    newSetlist: 'New setlist',
+    newSong: 'New song',
+    addSong: 'Add song',
+    required: 'required',
+    create: 'Create',
+    createAndOpen: 'Create and open',
+    moreFields: 'more fields',
+    fewerFields: 'fewer fields',
+
+    setlistHint:
+      'Only the name is required. The date, the venue and the notes can wait until you know them.',
+    setlistName: 'Setlist name',
+    setlistNamePlaceholder: 'e.g. Friday at the Roadhouse',
+    band: 'Band',
+    bandPlaceholder: 'e.g. Metallica covers',
+    eventDate: 'Show date',
+    venue: 'Venue',
+    venuePlaceholder: 'e.g. The Roadhouse',
+    setlistCreated: (name: string) => `Setlist "${name}" created, and now active`,
+
+    songHint:
+      'Only the title and the artist are required — the app fills the rest in for you when you import the tab or the audio.',
+    songTitle: 'Title',
+    songTitlePlaceholder: 'e.g. Master of Puppets',
+    artist: 'Artist',
+    artistPlaceholder: 'e.g. Metallica',
+    album: 'Album',
+    year: 'Year',
+    genre: 'Genre',
+    duration: 'Duration',
+    durationInvalid: 'That duration did not parse — write it the way a player shows it, like 4:32.',
+    key: 'Key',
+    bpm: 'BPM',
+    timeSignature: 'Time signature',
+    tuning: 'Tuning',
+    noTuning: '— none —',
+    capo: 'Capo',
+    notes: 'Notes',
+    addTo: 'Put it straight in the setlist',
+    onlyLibrary: '— library only —',
+    songCreated: (title: string) => `"${title}" is in the library`,
+    songCreatedIn: (title: string, setlist: string) => `"${title}" joined ${setlist}`,
+    duplicate: (title: string, artist: string) =>
+      `"${title}", by ${artist}, is already in your library.`,
+    duplicateOpen: 'Open the one you have',
+    duplicateAnyway: 'Create it anyway'
+  },
+
   errors: {
     songNotFound: 'Song not found',
+    titleRequired: 'The song needs a title',
+    artistRequired: 'The song needs an artist',
+    setlistNameRequired: 'The setlist needs a name',
     fileNotFound: (path: string) => `File not found: ${path}`,
     windowUnavailable: 'No window available',
     noLocalAudio: 'This song has no local audio file imported',

@@ -59,6 +59,30 @@ export function formatDuration(ms: number | null | undefined, empty = '—'): st
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+/**
+ * `m:ss` back to milliseconds — what `formatDuration` writes, read back.
+ *
+ * For the duration field in the "nova música" form, where people type what they
+ * see on a player: `4:32`, `1:04:10`, or just `272` when they have the seconds.
+ * Anything that is not a running time comes back as `null`, because the field
+ * is optional and refusing to save over a typo is worse than storing nothing.
+ */
+export function parseDuration(raw: string): number | null {
+  const text = raw.trim()
+  if (!text) return null
+
+  const parts = text.split(':')
+  if (parts.length > 3) return null
+  if (parts.some((p) => !/^\d+$/.test(p.trim()))) return null
+
+  const numbers = parts.map((p) => Number(p.trim()))
+  // only the leading unit may run past its base: "90:00" is an hour and a half
+  if (numbers.slice(1).some((n) => n > 59)) return null
+
+  const seconds = numbers.reduce((total, n) => total * 60 + n, 0)
+  return seconds > 0 ? seconds * 1000 : null
+}
+
 /** Seconds to `m:ss`, for playheads and loop markers. */
 export function formatSeconds(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'

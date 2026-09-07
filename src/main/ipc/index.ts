@@ -12,7 +12,14 @@ import {
 import { redactSecrets } from '../settings-core'
 import { encryptionHint, ENCRYPTION_UNAVAILABLE } from '../secretbox'
 import { probeProvider } from '../services/llm/probe'
-import { asEnum, asHttpUrl, asStringRecord } from './guard'
+import {
+  asEnum,
+  asHttpUrl,
+  asOptionalNumber,
+  asOptionalString,
+  asString,
+  asStringRecord
+} from './guard'
 import * as repo from '../db/repo'
 import {
   importAll,
@@ -47,7 +54,7 @@ import {
   tonePatchPrompt,
   tonePatchSystemPrompt
 } from '../services/prompts'
-import { mainLocale } from '../i18n'
+import { mainLocale, mt } from '../i18n'
 import { RIG_OUTPUT_EN } from '@shared/types'
 import { ffmpegVersion } from '../media/ffmpeg'
 import { nextLadderBpm } from '../practice/srs'
@@ -56,6 +63,8 @@ import type {
   DownloadProgress,
   IntegrationStatus,
   Instrument,
+  NewSetlistInput,
+  NewSongInput,
   ProgressStatus,
   YoutubeRole,
   RigView,
@@ -141,6 +150,38 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   /* --------------------------------------------------------------- songs */
 
   handle('songs:list', () => repo.listSongs())
+  /*
+   * Validated, unlike the writes around it, because this one is fed by a form
+   * rather than by the app's own data: an empty title is a thing that actually
+   * happens here, and a song with no title is unreachable in every list that
+   * sorts by it. The renderer disables the button too — this is the guard that
+   * does not depend on the renderer being right.
+   */
+  handle('songs:create', (raw: unknown) => {
+    const input = (raw ?? {}) as Record<string, unknown>
+    const title = asString(input.title, 'title', 300).trim()
+    const artist = asString(input.artist, 'artist', 300).trim()
+    if (!title) throw new Error(mt().errors.titleRequired)
+    if (!artist) throw new Error(mt().errors.artistRequired)
+    return repo.createSong({
+      title,
+      artist,
+      album: asOptionalString(input.album, 'album', 300),
+      year: asOptionalNumber(input.year, 'year'),
+      genre: asOptionalString(input.genre, 'genre', 120),
+      durationMs: asOptionalNumber(input.durationMs, 'durationMs'),
+      musicalKey: asOptionalString(input.musicalKey, 'musicalKey', 20),
+      bpm: asOptionalNumber(input.bpm, 'bpm'),
+      timeSignature: asOptionalString(input.timeSignature, 'timeSignature', 20),
+      tuningId: asOptionalNumber(input.tuningId, 'tuningId'),
+      capo: asOptionalNumber(input.capo, 'capo'),
+      notes: asOptionalString(input.notes, 'notes'),
+      setlistId: asOptionalNumber(input.setlistId, 'setlistId')
+    } satisfies NewSongInput)
+  })
+  handle('songs:findDuplicate', (title: unknown, artist: unknown) =>
+    repo.findSongDuplicate(asString(title, 'title', 300), asString(artist, 'artist', 300))
+  )
   handle('songs:get', (id: number) => repo.getSong(id))
   handle('songs:update', (id: number, patch: Record<string, unknown>) => repo.updateSong(id, patch))
   handle('songs:delete', (id: number) => repo.deleteSong(id))
@@ -162,9 +203,16 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   handle('setlists:list', () => repo.listSetlists())
   handle('setlists:items', (id: number) => repo.getSetlistItems(id))
-  handle('setlists:create', (name: string, band?: string | null) =>
-    repo.createSetlist(name, band ?? null)
-  )
+  handle('setlists:create', (name: unknown, band?: unknown, extra?: unknown) => {
+    const trimmed = asString(name, 'name', 200).trim()
+    if (!trimmed) throw new Error(mt().errors.setlistNameRequired)
+    const rest = (extra ?? {}) as Record<string, unknown>
+    return repo.createSetlist(trimmed, asOptionalString(band, 'band', 120), null, {
+      eventDate: asOptionalNumber(rest.eventDate, 'eventDate'),
+      venue: asOptionalString(rest.venue, 'venue', 200),
+      notes: asOptionalString(rest.notes, 'notes')
+    } satisfies Omit<NewSetlistInput, 'name' | 'band'>)
+  })
   handle('setlists:bands', () => repo.listBands())
   handle('setlists:removeSong', (setlistId: number, songId: number) =>
     repo.removeSongFromSetlist(setlistId, songId)

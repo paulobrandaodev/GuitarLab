@@ -154,6 +154,41 @@ export interface SetlistItemView {
   song: SongView
 }
 
+/**
+ * A song typed in by hand, from the "nova música" dialog.
+ *
+ * Only the title and the artist are required. Everything else is what an
+ * importer would have read off a file, and the user can fill it in later from
+ * the song's own screen — asking for a BPM before the song exists is how a
+ * form stops being used.
+ */
+export interface NewSongInput {
+  title: string
+  artist: string
+  album?: string | null
+  year?: number | null
+  genre?: string | null
+  durationMs?: number | null
+  musicalKey?: string | null
+  bpm?: number | null
+  timeSignature?: string | null
+  tuningId?: number | null
+  capo?: number | null
+  notes?: string | null
+  /** Setlist the song joins the moment it is created, when there is one. */
+  setlistId?: number | null
+}
+
+/** A setlist typed in by hand. Only the name is required. */
+export interface NewSetlistInput {
+  name: string
+  band?: string | null
+  /** Show date, as a unix timestamp in seconds. */
+  eventDate?: number | null
+  venue?: string | null
+  notes?: string | null
+}
+
 export interface MediaAssetView {
   id: number
   songId: number

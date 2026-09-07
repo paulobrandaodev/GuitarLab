@@ -24,7 +24,9 @@ import type {
   LlmProgressEvent,
   SpotifyPlaylistView,
   PlaylistImportView,
-  SettingsSnapshot
+  SettingsSnapshot,
+  NewSongInput,
+  NewSetlistInput
 } from '@shared/types'
 
 /** Mirrors the shape exposed by the preload bridge. */
@@ -42,6 +44,13 @@ export interface Api {
   songs: {
     list: () => Promise<SongView[]>
     get: (id: number) => Promise<SongView | null>
+    /** A song typed in by hand — only the title and the artist are required. */
+    create: (input: NewSongInput) => Promise<SongView>
+    /** The library song this title and artist would duplicate, if there is one. */
+    findDuplicate: (
+      title: string,
+      artist: string
+    ) => Promise<{ id: number; title: string; artist: string | null } | null>
     update: (id: number, patch: Record<string, unknown>) => Promise<SongView | null>
     remove: (id: number) => Promise<void>
     media: (id: number) => Promise<MediaAssetView[]>
@@ -56,7 +65,11 @@ export interface Api {
   setlists: {
     list: () => Promise<SetlistView[]>
     items: (id: number) => Promise<SetlistItemView[]>
-    create: (name: string, band?: string | null) => Promise<SetlistView>
+    create: (
+      name: string,
+      band?: string | null,
+      extra?: Omit<NewSetlistInput, 'name' | 'band'>
+    ) => Promise<SetlistView>
     bands: () => Promise<string[]>
     removeSong: (setlistId: number, songId: number) => Promise<void>
     addSong: (setlistId: number, songId: number) => Promise<void>

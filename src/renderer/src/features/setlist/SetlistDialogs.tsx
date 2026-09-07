@@ -1,8 +1,26 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { NeuCard, NeuButton, NeuInput, Spinner, Badge, cx } from '../../components/ui'
+import {
+  NeuCard,
+  NeuButton,
+  NeuInput,
+  NeuSelect,
+  Spinner,
+  Badge,
+  cx
+} from '../../components/ui'
 import { IconSpotify, IconX } from '../../components/ui/icons'
 import { api, isError } from '../../lib/api'
-import type { SetlistView, SongView, SpotifyPlaylistView, PlaylistImportView } from '@shared/types'
+import { useStrings } from '../../lib/i18n'
+import { parseDuration } from '@shared/format'
+import type {
+  NewSetlistInput,
+  NewSongInput,
+  SetlistView,
+  SongView,
+  SpotifyPlaylistView,
+  PlaylistImportView,
+  TuningView
+} from '@shared/types'
 
 /** Shared shell: a centred panel over a dimming backdrop. */
 export function Modal({
@@ -80,6 +98,419 @@ export function ConfirmDialog({
             }}
           >
             {busy ? <Spinner size={14} /> : confirmLabel}
+          </NeuButton>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/* --------------------------------------------- adding things by hand */
+
+/**
+ * A day picked in the browser's date field, as the unix timestamp the database
+ * stores. Midday, deliberately: a date stored at midnight lands on the previous
+ * day for anyone west of UTC, and a show would show up on the wrong date.
+ */
+function dayToUnix(value: string): number | null {
+  if (!value) return null
+  const ms = new Date(`${value}T12:00:00`).getTime()
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : null
+}
+
+/** A number the user may have left blank. Anything unreadable counts as blank. */
+function optionalNumber(value: string): number | null {
+  const text = value.trim()
+  if (!text) return null
+  const n = Number(text)
+  return Number.isFinite(n) ? n : null
+}
+
+/**
+ * A setlist typed in by hand.
+ *
+ * The show is booked before the songs are chosen, so the name is the only
+ * thing this asks for. The rest is here because the user often does know the
+ * date and the venue, and typing them now beats coming back for them.
+ */
+export function NewSetlistDialog({
+  bands,
+  onCreate,
+  onClose
+}: {
+  bands: string[]
+  onCreate: (input: NewSetlistInput) => Promise<void>
+  onClose: () => void
+}): ReactNode {
+  const str = useStrings()
+  const [form, setForm] = useState({ name: '', band: '', eventDate: '', venue: '', notes: '' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const ready = form.name.trim().length > 0
+
+  const create = async (): Promise<void> => {
+    if (!ready || busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      await onCreate({
+        name: form.name.trim(),
+        band: form.band.trim() || null,
+        eventDate: dayToUnix(form.eventDate),
+        venue: form.venue.trim() || null,
+        notes: form.notes.trim() || null
+      })
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title={str.manual.newSetlist} onClose={onClose}>
+      <div className="scroll-area min-h-0 flex-1 space-y-3">
+        <NeuInput
+          label={`${str.manual.setlistName} · ${str.manual.required}`}
+          placeholder={str.manual.setlistNamePlaceholder}
+          value={form.name}
+          autoFocus
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void create()
+          }}
+        />
+
+        <div>
+          <NeuInput
+            label={str.manual.band}
+            placeholder={str.manual.bandPlaceholder}
+            value={form.band}
+            onChange={(e) => setForm({ ...form, band: e.target.value })}
+          />
+          {bands.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {bands.map((b) => (
+                <button
+                  key={b}
+                  onClick={() => setForm({ ...form, band: form.band === b ? '' : b })}
+                  className={cx(
+                    'rounded-full px-2.5 py-1 text-[11px] font-semibold',
+                    form.band === b ? 'neu-glow gradient-text' : 'neu-press text-txt-dim'
+                  )}
+                >
+                  {b}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <NeuInput
+            label={str.manual.eventDate}
+            type="date"
+            value={form.eventDate}
+            onChange={(e) => setForm({ ...form, eventDate: e.target.value })}
+          />
+          <NeuInput
+            label={str.manual.venue}
+            placeholder={str.manual.venuePlaceholder}
+            value={form.venue}
+            onChange={(e) => setForm({ ...form, venue: e.target.value })}
+          />
+        </div>
+
+        <div>
+          <label className="micro-label mb-2 block">{str.manual.notes}</label>
+          <textarea
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            className="neu-inset text-txt h-20 w-full resize-none rounded-[16px] p-3 text-sm outline-none"
+          />
+        </div>
+
+        <p className="text-txt-micro text-[11px]">{str.manual.setlistHint}</p>
+
+        {error && <div className="neu-inset text-danger rounded-[14px] p-3 text-[12px]">{error}</div>}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <NeuButton onClick={onClose}>{str.common.cancel}</NeuButton>
+          <NeuButton variant="accent" onClick={create} disabled={!ready || busy}>
+            {busy ? <Spinner size={14} /> : str.manual.create}
+          </NeuButton>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/**
+ * A song typed in by hand.
+ *
+ * Title and artist are required and nothing else is, because those two are what
+ * every other feature searches with: the tab sites, archive.org and the lyrics
+ * service are all queried as "artist title", and a song missing either one is a
+ * row that can never fetch its own files.
+ *
+ * The extra fields are folded away by default. They are the same ones the song
+ * screen edits, so anything skipped here has an obvious place to be filled in
+ * later — and importing a Guitar Pro file fills most of them in by itself.
+ */
+export function NewSongDialog({
+  setlists,
+  defaultSetlistId,
+  onCreated,
+  onOpenSong,
+  onClose
+}: {
+  setlists: SetlistView[]
+  defaultSetlistId: number | null
+  onCreated: (song: SongView, setlist: SetlistView | null) => void
+  onOpenSong: (songId: number) => void
+  onClose: () => void
+}): ReactNode {
+  const str = useStrings()
+  const [tunings, setTunings] = useState<TuningView[]>([])
+  const [expanded, setExpanded] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  /** The library song this one would duplicate, once the user has been warned. */
+  const [duplicate, setDuplicate] = useState<{ id: number; title: string; artist: string | null } | null>(
+    null
+  )
+  const [form, setForm] = useState({
+    title: '',
+    artist: '',
+    album: '',
+    year: '',
+    genre: '',
+    duration: '',
+    musicalKey: '',
+    bpm: '',
+    timeSignature: '',
+    tuningId: '',
+    capo: '',
+    notes: '',
+    setlistId: defaultSetlistId ? String(defaultSetlistId) : ''
+  })
+
+  useEffect(() => {
+    void api.songs.tunings().then(setTunings)
+  }, [])
+
+  const durationMs = parseDuration(form.duration)
+  const badDuration = form.duration.trim().length > 0 && durationMs === null
+  const ready = form.title.trim().length > 0 && form.artist.trim().length > 0 && !badDuration
+
+  /** `skipDuplicateCheck` is the "criar assim mesmo" path, after the warning. */
+  const create = async (skipDuplicateCheck: boolean): Promise<void> => {
+    if (!ready || busy) return
+    const title = form.title.trim()
+    const artist = form.artist.trim()
+    setBusy(true)
+    setError(null)
+    try {
+      if (!skipDuplicateCheck) {
+        const found = await api.songs.findDuplicate(title, artist)
+        if (found) {
+          setDuplicate(found)
+          return
+        }
+      }
+      const setlistId = form.setlistId ? Number(form.setlistId) : null
+      const song = await api.songs.create({
+        title,
+        artist,
+        album: form.album.trim() || null,
+        year: optionalNumber(form.year),
+        genre: form.genre.trim() || null,
+        durationMs,
+        musicalKey: form.musicalKey.trim() || null,
+        bpm: optionalNumber(form.bpm),
+        timeSignature: form.timeSignature.trim() || null,
+        tuningId: form.tuningId ? Number(form.tuningId) : null,
+        capo: optionalNumber(form.capo),
+        notes: form.notes.trim() || null,
+        setlistId
+      } satisfies NewSongInput)
+      onCreated(song, setlists.find((l) => l.id === setlistId) ?? null)
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title={str.manual.newSong} onClose={onClose} wide>
+      <div className="scroll-area min-h-0 flex-1 space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <NeuInput
+            label={`${str.manual.songTitle} · ${str.manual.required}`}
+            placeholder={str.manual.songTitlePlaceholder}
+            value={form.title}
+            autoFocus
+            onChange={(e) => {
+              // editing either half of the pair answers the warning it raised
+              setDuplicate(null)
+              setForm({ ...form, title: e.target.value })
+            }}
+          />
+          <NeuInput
+            label={`${str.manual.artist} · ${str.manual.required}`}
+            placeholder={str.manual.artistPlaceholder}
+            value={form.artist}
+            onChange={(e) => {
+              setDuplicate(null)
+              setForm({ ...form, artist: e.target.value })
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void create(false)
+            }}
+          />
+        </div>
+
+        {setlists.length > 0 && (
+          <NeuSelect
+            label={str.manual.addTo}
+            value={form.setlistId}
+            onChange={(v) => setForm({ ...form, setlistId: v })}
+            options={[
+              { value: '', label: str.manual.onlyLibrary },
+              ...setlists.map((l) => ({
+                value: String(l.id),
+                label: l.band ? `${l.name} · ${l.band}` : l.name
+              }))
+            ]}
+          />
+        )}
+
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="neu-press text-txt-dim rounded-[12px] px-3 py-1.5 text-[11px] font-semibold"
+        >
+          {expanded ? str.manual.fewerFields : str.manual.moreFields}
+        </button>
+
+        {expanded && (
+          <div className="neu-inset space-y-3 rounded-[16px] p-3.5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <NeuInput
+                label={str.manual.album}
+                value={form.album}
+                onChange={(e) => setForm({ ...form, album: e.target.value })}
+              />
+              <NeuInput
+                label={str.manual.year}
+                type="number"
+                value={form.year}
+                onChange={(e) => setForm({ ...form, year: e.target.value })}
+              />
+              <NeuInput
+                label={str.manual.genre}
+                value={form.genre}
+                onChange={(e) => setForm({ ...form, genre: e.target.value })}
+              />
+              <NeuInput
+                label={str.manual.duration}
+                /* m:ss reads the same in every language this app speaks */
+                placeholder="4:32"
+                value={form.duration}
+                onChange={(e) => setForm({ ...form, duration: e.target.value })}
+              />
+              <NeuInput
+                label={str.manual.key}
+                placeholder="Em, A, F#m"
+                value={form.musicalKey}
+                onChange={(e) => setForm({ ...form, musicalKey: e.target.value })}
+              />
+              <NeuInput
+                label={str.manual.bpm}
+                type="number"
+                value={form.bpm}
+                onChange={(e) => setForm({ ...form, bpm: e.target.value })}
+              />
+              <NeuInput
+                label={str.manual.timeSignature}
+                placeholder="4/4"
+                value={form.timeSignature}
+                onChange={(e) => setForm({ ...form, timeSignature: e.target.value })}
+              />
+              <NeuSelect
+                label={str.manual.tuning}
+                value={form.tuningId}
+                onChange={(v) => setForm({ ...form, tuningId: v })}
+                options={[
+                  { value: '', label: str.manual.noTuning },
+                  ...tunings.map((t) => ({
+                    value: String(t.id),
+                    label: `${t.name} (${t.strings.join(' ')})`
+                  }))
+                ]}
+              />
+              <NeuInput
+                label={str.manual.capo}
+                type="number"
+                value={form.capo}
+                onChange={(e) => setForm({ ...form, capo: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="micro-label mb-2 block">{str.manual.notes}</label>
+              <textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                className="neu-inset text-txt h-20 w-full resize-none rounded-[16px] p-3 text-sm outline-none"
+              />
+            </div>
+          </div>
+        )}
+
+        {badDuration && (
+          <div className="neu-inset text-warn rounded-[14px] p-3 text-[12px]">
+            {str.manual.durationInvalid}
+          </div>
+        )}
+
+        {duplicate && (
+          <div className="neu-inset space-y-2 rounded-[14px] p-3 text-[12px]">
+            <div className="text-warn">
+              {str.manual.duplicate(duplicate.title, duplicate.artist ?? str.common.empty)}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <NeuButton
+                className="!px-3 !py-1.5 !text-[11px]"
+                onClick={() => {
+                  onOpenSong(duplicate.id)
+                  onClose()
+                }}
+              >
+                {str.manual.duplicateOpen}
+              </NeuButton>
+              <NeuButton
+                className="!px-3 !py-1.5 !text-[11px]"
+                variant="accent"
+                onClick={() => void create(true)}
+                disabled={busy}
+              >
+                {str.manual.duplicateAnyway}
+              </NeuButton>
+            </div>
+          </div>
+        )}
+
+        <p className="text-txt-micro text-[11px]">{str.manual.songHint}</p>
+
+        {error && <div className="neu-inset text-danger rounded-[14px] p-3 text-[12px]">{error}</div>}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <NeuButton onClick={onClose}>{str.common.cancel}</NeuButton>
+          <NeuButton variant="accent" onClick={() => void create(false)} disabled={!ready || busy}>
+            {busy ? <Spinner size={14} /> : str.manual.create}
           </NeuButton>
         </div>
       </div>

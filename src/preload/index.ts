@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { SettingsSnapshot } from '@shared/types'
+import type { NewSetlistInput, NewSongInput, SettingsSnapshot } from '@shared/types'
 
 /**
  * Every call funnels through `invoke`, which unwraps the `{ __error }` envelope
@@ -24,6 +24,9 @@ const api = {
   songs: {
     list: () => invoke('songs:list'),
     get: (id: number) => invoke('songs:get', id),
+    create: (input: NewSongInput) => invoke('songs:create', input),
+    findDuplicate: (title: string, artist: string) =>
+      invoke('songs:findDuplicate', title, artist),
     update: (id: number, patch: unknown) => invoke('songs:update', id, patch),
     remove: (id: number) => invoke('songs:delete', id),
     media: (id: number) => invoke('songs:media', id),
@@ -38,7 +41,8 @@ const api = {
   setlists: {
     list: () => invoke('setlists:list'),
     items: (id: number) => invoke('setlists:items', id),
-    create: (name: string, band?: string | null) => invoke('setlists:create', name, band),
+    create: (name: string, band?: string | null, extra?: Omit<NewSetlistInput, 'name' | 'band'>) =>
+      invoke('setlists:create', name, band, extra),
     bands: () => invoke('setlists:bands'),
     removeSong: (setlistId: number, songId: number) =>
       invoke('setlists:removeSong', setlistId, songId),

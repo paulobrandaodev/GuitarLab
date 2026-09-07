@@ -73,6 +73,8 @@ npm run test:i18n      # catalogues in step, no lost interpolation, no raw Portu
 npm run test:settings  # settings precedence, secret redaction, IPC guards
 npm run test:secrets   # encryption at rest, against the real OS keystore
 npm run test:setlist   # setlists, bands, playlist sync, title cleanup
+npm run test:manual    # the "new setlist" and "new song" dialogs, server-rendered
+npm run test:newsong   # the same two dialogs typed into, in a real renderer
 npm run test:sources   # Ultimate Guitar links, ranking, live archive.org search
 npm run test:chords    # transposition, chord track parsing, lab JSON validation
 npm run test:tempo     # beat grid, snapping, playhead drift inside an A–B loop
@@ -85,8 +87,8 @@ npm run test:chordmap  # end-to-end chord detection (skips if the container is d
 ```
 
 Some need context: `test:llm` calls real AI providers and needs a key;
-`test:chordmap` skips itself when the lab container is not running; `test:player`
-and `test:media` need `npm run build` first.
+`test:chordmap` skips itself when the lab container is not running; `test:player`,
+`test:newsong` and `test:media` need `npm run build` first.
 
 **If you are on Linux or macOS and the Electron tests fail immediately**, check
 that `ELECTRON_RUN_AS_NODE` is not set in your shell:

@@ -128,6 +128,18 @@ const SAME_ON_PURPOSE = new Set([
   'settings.disconnect',
 
   /*
+   * Field labels in the "add by hand" form. Checked one by one: these are the
+   * words Portuguese and Spanish spell the same, and "BPM" is a unit in every
+   * language including English. Everything else in that form is translated.
+   */
+  'manual.band',
+  'manual.artist',
+  'manual.songTitle',
+  'manual.album',
+  'manual.bpm',
+  'manual.fewerFields',
+
+  /*
    * Portuguese and Spanish genuinely share these words. Checked one by one —
    * add to this list only after confirming the word really is identical in
    * both, not after assuming it.

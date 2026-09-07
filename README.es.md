@@ -95,6 +95,10 @@ anula en silencio una clave recién pegada sea visible y no desconcertante.
 3. Las canciones aparecen con afinación, tempo, tonalidad, secciones, letra y
    acordes ya extraídos de los archivos de Guitar Pro.
 4. Añádelas a un setlist, abre **Estudar** y empieza.
+5. ¿Sin ningún archivo? **Nova música** y **Novo setlist**, en la pantalla de
+   setlist, crean ambos a mano — un setlist sólo necesita un nombre, y una
+   canción sólo un título y un artista. Lo demás (álbum, duración, tono, tempo,
+   afinación…) puede esperar, o llega solo cuando llega la tablatura o el audio.
 
 El emparejamiento entre tablatura y audio se hace **por metadatos** (ID3 en MP3,
 RIFF INFO en WAV, la cabecera del GP). `02.-Master Of Puppets.wav` y

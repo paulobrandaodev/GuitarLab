@@ -9,6 +9,11 @@
  * and the matcher rule that a Spotify track already in the library must not be
  * imported a second time. Also covers deleting a setlist and re-importing the
  * same Spotify playlist, which refreshes the set instead of duplicating it.
+ *
+ * The last sections cover the by-hand path: a song typed into the "nova música"
+ * dialog has to end up indistinguishable from an imported one — same artist row,
+ * same progress row — and must not quietly become a second copy of a song the
+ * library already has.
  */
 import Database from 'better-sqlite3'
 import { homedir } from 'node:os'
@@ -16,7 +21,9 @@ import { join } from 'node:path'
 import { existsSync, copyFileSync, rmSync } from 'node:fs'
 import { matchSong } from '../src/main/importers/matcher'
 import { deleteSetlistRow, syncSetlistItems } from '../src/main/db/setlists'
+import { findDuplicateSong, insertSongRow, upsertArtistRow } from '../src/main/db/songs'
 import { cleanStoredTitles } from '../src/main/db/repair'
+import { parseDuration } from '../src/shared/format'
 
 const REAL_DB = join(homedir(), 'AppData/Roaming/setlist-lab/setlist-lab.db')
 const TMP_DB = join(homedir(), 'AppData/Local/Temp/setlist-lab-setlist-test.db')
@@ -239,6 +246,124 @@ console.log('\n=== 7. limpeza dos titulos ja gravados ===')
   check('rodar de novo nao muda nada', cleanStoredTitles(db).renamed === 0)
 
   db.prepare(`DELETE FROM songs WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids)
+}
+
+console.log('\n=== 8. musica criada na mao ===')
+{
+  const before = (db.prepare('SELECT COUNT(*) AS n FROM songs').get() as { n: number }).n
+  const id = insertSongRow(
+    db,
+    {
+      title: 'Musica Escrita Na Mao',
+      artist: 'Banda Inventada Do Teste',
+      album: 'Album Do Teste',
+      bpm: 132,
+      musicalKey: 'Em',
+      capo: 2
+    },
+    'guitar'
+  )
+  const row = db
+    .prepare(
+      `SELECT s.title, s.album, s.bpm, s.bpm_source AS bpmSource, s.musical_key AS musicalKey,
+              s.key_source AS keySource, s.capo, s.duration_ms AS durationMs, a.name AS artist
+       FROM songs s LEFT JOIN artists a ON a.id = s.artist_id WHERE s.id = ?`
+    )
+    .get(id) as Record<string, unknown>
+
+  check('a musica entra na biblioteca', row?.title === 'Musica Escrita Na Mao', String(row?.title))
+  check('o artista vira uma linha propria', row?.artist === 'Banda Inventada Do Teste', String(row?.artist))
+  check('os campos opcionais preenchidos sao gravados', row?.album === 'Album Do Teste' && row?.bpm === 132)
+  check('os campos deixados em branco ficam nulos', row?.durationMs === null, String(row?.durationMs))
+  check('capo passa mesmo valendo zero por padrao', row?.capo === 2, String(row?.capo))
+  check(
+    'o que o usuario digitou fica marcado como manual',
+    row?.bpmSource === 'manual' && row?.keySource === 'manual',
+    `${row?.bpmSource} / ${row?.keySource}`
+  )
+
+  const progress = db
+    .prepare("SELECT COUNT(*) AS n FROM progress WHERE song_id = ? AND instrument = 'guitar'")
+    .get(id) as { n: number }
+  check('abre a linha de progresso da guitarra', progress.n === 1, `${progress.n}`)
+
+  // the same artist typed again must not make a second artist row
+  const artistCount = () =>
+    (db.prepare('SELECT COUNT(*) AS n FROM artists WHERE name = ?').get('Banda Inventada Do Teste') as {
+      n: number
+    }).n
+  const second = insertSongRow(
+    db,
+    { title: 'Outra Musica Na Mao', artist: 'Banda Inventada Do Teste' },
+    'guitar'
+  )
+  check('o artista e reaproveitado', artistCount() === 1, `${artistCount()} linhas`)
+  check(
+    'upsertArtistRow devolve a linha que ja existe',
+    upsertArtistRow(db, 'Banda Inventada Do Teste') ===
+      (db.prepare('SELECT id FROM artists WHERE name = ?').get('Banda Inventada Do Teste') as {
+        id: number
+      }).id
+  )
+  check('artista em branco nao vira linha', upsertArtistRow(db, '   ') === null)
+
+  let refused = 0
+  for (const bad of [
+    { title: '   ', artist: 'Alguem' },
+    { title: 'Alguma Coisa', artist: '' }
+  ]) {
+    try {
+      insertSongRow(db, bad, 'guitar')
+    } catch {
+      refused++
+    }
+  }
+  check('titulo e artista sao obrigatorios', refused === 2, `${refused} de 2 recusados`)
+
+  const after = (db.prepare('SELECT COUNT(*) AS n FROM songs').get() as { n: number }).n
+  check('nada foi gravado pelas tentativas recusadas', after === before + 2, `${after - before}`)
+
+  console.log('\n=== 9. a mesma musica nao vira duas linhas ===')
+  const dup = findDuplicateSong(db, '  musica escrita na MAO ', 'banda inventada do teste')
+  check('acha a repetida ignorando caixa e espaco', dup?.id === id, dup ? dup.title : 'nao achou')
+  const dupNoise = findDuplicateSong(db, 'Musica Escrita Na Mao - Remastered', 'Banda Inventada Do Teste')
+  check('o sufixo de loja nao engana a checagem', dupNoise?.id === id, dupNoise ? dupNoise.title : 'nao achou')
+  check(
+    'artista diferente e outra musica',
+    findDuplicateSong(db, 'Musica Escrita Na Mao', 'Outra Banda Qualquer') === null
+  )
+  check(
+    'titulo diferente e outra musica',
+    findDuplicateSong(db, 'Musica Que Ninguem Escreveu', 'Banda Inventada Do Teste') === null
+  )
+
+  db.prepare('DELETE FROM songs WHERE id IN (?, ?)').run(id, second)
+  db.prepare('DELETE FROM artists WHERE name = ?').run('Banda Inventada Do Teste')
+  const orphanProgress = db.prepare('SELECT COUNT(*) AS n FROM progress WHERE song_id = ?').get(id) as {
+    n: number
+  }
+  check('apagar a musica leva o progresso junto', orphanProgress.n === 0, `${orphanProgress.n}`)
+}
+
+console.log('\n=== 10. duracao digitada a mao ===')
+{
+  const cases: Array<[string, number | null]> = [
+    ['4:32', 272000],
+    ['0:45', 45000],
+    ['1:04:10', 3850000],
+    ['272', 272000],
+    [' 4:32 ', 272000],
+    ['', null],
+    ['0:00', null],
+    ['quatro e meio', null],
+    ['4:99', null],
+    ['1:2:3:4', null],
+    ['4.32', null]
+  ]
+  for (const [input, expected] of cases) {
+    const got = parseDuration(input)
+    check(`"${input}" -> ${expected === null ? 'nada' : expected}`, got === expected, `${got}`)
+  }
 }
 
 // clean up the scratch rows even though the file is thrown away
