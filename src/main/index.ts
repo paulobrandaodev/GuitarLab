@@ -167,8 +167,23 @@ function registerAppProtocol(): void {
   })
 }
 
+/**
+ * The window icon.
+ *
+ * On Windows and macOS the icon a user sees comes from the executable, which
+ * electron-builder stamps from resources/icon.png. This one covers the two
+ * cases that does not reach: `npm run dev`, where there is no executable, and
+ * Linux, where the window manager reads it from the window itself. Missing is
+ * not an error — it only means the default Electron icon shows in dev.
+ */
+function windowIcon(): string | undefined {
+  const candidate = join(config.projectRoot, 'resources', 'icon.png')
+  return existsSync(candidate) ? candidate : undefined
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
+    icon: windowIcon(),
     width: 1440,
     height: 940,
     minWidth: 1100,

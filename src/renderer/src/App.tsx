@@ -90,7 +90,15 @@ function TitleBar({ onBack, canBack }: { onBack: () => void; canBack: boolean })
             <IconArrowLeft width={16} height={16} />
           </IconButton>
         )}
-        <span className="micro-label ml-1">GuitarLab</span>
+        <img
+          src="/favicon.png"
+          alt=""
+          width={18}
+          height={18}
+          className="ml-1 select-none"
+          draggable={false}
+        />
+        <span className="micro-label">GuitarLab</span>
       </div>
       <div className="no-drag flex items-center gap-2">
         <IconButton size={32} title="Afinador" onClick={() => go({ name: 'tuner' })}>
