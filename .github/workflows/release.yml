@@ -42,6 +42,17 @@ jobs:
       # The subset that needs nothing external. A release is the worst place to
       # find out the bundle does not build, and `npm run build` below would not
       # catch a broken catalogue or a settings regression.
+      # Ubuntu runners restrict unprivileged user namespaces, so Electron's SUID
+      # sandbox helper refuses to start and every suite that opens a real window
+      # aborts with SIGTRAP before running a single assertion. Giving the helper
+      # the ownership it expects keeps the sandbox on, where --no-sandbox would
+      # switch it off and quietly test a configuration nobody ships.
+      - name: Let Electron's sandbox start (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo chown root:root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+
       - name: Test (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run --auto-servernum npm run test:ci
