@@ -26,7 +26,11 @@ import type {
   PlaylistImportView,
   SettingsSnapshot,
   NewSongInput,
-  NewSetlistInput
+  NewSetlistInput,
+  LabPack,
+  LabSetupStatus,
+  LabSetupProgress,
+  ToolProgress
 } from '@shared/types'
 
 /** Mirrors the shape exposed by the preload bridge. */
@@ -224,6 +228,36 @@ export interface Api {
     refresh: (jobId: number) => Promise<AnalysisJobView | null>
     refreshAll: () => Promise<AnalysisJobView[]>
     onJobsUpdated: (cb: (jobs: AnalysisJobView[]) => void) => () => void
+    /** Installing and running the local Python runtime that the lab needs. */
+    setup: {
+      status: () => Promise<LabSetupStatus>
+      install: (pack: LabPack) => Promise<{ ok: true } | { error: string }>
+      cancel: () => Promise<{ ok: true }>
+      remove: () => Promise<void>
+      removeModels: () => Promise<void>
+      start: () => Promise<string | { error: string }>
+      stop: () => Promise<void>
+      fetchModel: (
+        family: 'demucs' | 'whisper',
+        id: string
+      ) => Promise<{ jobId: string } | { error: string }>
+      modelJob: (jobId: string) => Promise<{ status?: string; progress?: number; error?: string } | null>
+      onProgress: (cb: (progress: LabSetupProgress) => void) => () => void
+    }
+  }
+  tools: {
+    installFfmpeg: () => Promise<{ path: string } | { error: string }>
+    removeFfmpeg: () => Promise<void>
+    managedFfmpeg: () => Promise<{ path: string | null }>
+    onProgress: (cb: (progress: ToolProgress) => void) => () => void
+  }
+  update: {
+    check: () => Promise<{ version: string } | null>
+    download: () => Promise<void>
+    install: () => Promise<{ ok: true }>
+    onAvailable: (cb: (info: { version: string; notes: string | null }) => void) => () => void
+    onProgress: (cb: (info: { percent: number; bytesPerSecond: number }) => void) => () => void
+    onReady: (cb: (info: { version: string }) => void) => () => void
   }
   gear: {
     rig: () => Promise<RigView>

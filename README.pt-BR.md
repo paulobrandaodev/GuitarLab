@@ -37,9 +37,13 @@ Baixe um instalador em [Releases](https://github.com/paulobrandaodev/GuitarLab/r
 | Windows | `GuitarLab-<versão>-instalador.exe`, ou a versão portátil |
 | Linux | `.AppImage` (não instala nada) ou `.deb` |
 
-**Um único requisito obrigatório: o [FFmpeg](https://ffmpeg.org/download.html)**
-instalado e no `PATH`. Sem ele a importação de áudio falha — o app avisa logo na
-primeira abertura. Todo o resto é opcional.
+**Nada mais para instalar.** O app precisa do [FFmpeg](https://ffmpeg.org/) e,
+se ele ainda não estiver no seu `PATH`, há um botão em Ajustes que baixa e
+instala para você. O laboratório de áudio — separação de stems e análise —
+também se instala de dentro do app, então não há Python nem Docker para
+configurar.
+
+Tudo, menos o laboratório, funciona assim que o instalador termina.
 
 **Os builds de Windows não são assinados.** O SmartScreen vai dizer "editor
 desconhecido": clique em *Mais informações* → *Executar assim mesmo*. Um
@@ -62,22 +66,30 @@ abertura.
 
 ### Laboratório de áudio (opcional)
 
-Separação de stems e análise automática de BPM/tom/acordes rodam num container.
-**O app funciona inteiro sem ele** — é a única parte que precisa de Docker.
+Separação de stems, BPM e grade de batidas, tom e acordes, áudio→MIDI e
+transcrição de letra. **O app funciona inteiro sem ele** — fica desligado até
+você instalar, e toda tela que o usa diz isso em vez de quebrar.
 
-```bash
-npm run lab:up       # CPU, funciona em qualquer máquina
-npm run lab:up:gpu   # NVIDIA, precisa do NVIDIA Container Toolkit
-npm run lab:logs     # acompanha
-npm run lab:down     # derruba
-```
+Instala-se de dentro do app: abra a aba **Laboratório** e escolha um pacote.
 
-Aviso: a imagem base é enorme (a final fica em 12–15 GB), mais os pesos dos
-modelos baixados no primeiro uso. Vale se você quer stems; se não, pule.
+| Pacote | Download | Em disco | Para |
+|---|---|---|---|
+| Processador (CPU) | ~400 MB | ~1,1 GB | qualquer máquina |
+| NVIDIA (CUDA) | ~2,7 GB | ~7 GB | placa NVIDIA, driver 525+ |
 
-Se suas pastas de mídia não estão no repositório, copie
-[.env.compose.example](.env.compose.example) para `.env` ao lado do
-`docker-compose.yml` e aponte para as mesmas pastas escolhidas em Ajustes.
+O app baixa o [uv](https://github.com/astral-sh/uv), pede a ele um CPython 3.10
+só seu, monta um virtualenv e instala PyTorch, Demucs, librosa, basic-pitch e
+faster-whisper ali dentro. Nada disso vai no instalador — é por isso que o
+instalador tem ~116 MB e não vários gigabytes. Os pesos dos modelos são outro
+download à parte, listados com o tamanho e baixados pelo botão de cada linha.
+
+**O pacote CUDA precisa só do driver da NVIDIA.** Nada de CUDA Toolkit, nada de
+Container Toolkit, nada de Docker — o runtime do CUDA vem dentro dos pacotes
+`nvidia-*-cu12` que o PyTorch arrasta. Essa é a razão prática de o container ter
+saído: a GPU deixou de exigir "instale o Docker Desktop e um runtime de
+container" e passou a exigir "você já tem o driver".
+
+Tudo fica na pasta de dados do app, e **Remover o laboratório** desfaz.
 
 ---
 
@@ -211,7 +223,9 @@ Tokens OAuth ficam criptografados no banco com `safeStorage`, nunca no `.env`.
 
 **Áudio vem do archive.org, e esse é automático.** O archive.org tem busca e metadados públicos, então o botão **WAV** faz o caminho inteiro: procura o item, pontua faixa por faixa contra o título e o artista da música (o mesmo casador do importador), prefere wav/flac a mp3, baixa para [songs/](songs/) e importa — duração, loudness EBU R128 e forma de onda saem na hora. Download parcial é apagado: um wav truncado em `songs/` viraria uma faixa corrompida para sempre.
 
-**O sidecar roda o código do repositório, não o da imagem.** O Dockerfile copia `lab/app` para dentro da imagem, então editar o Python e rodar `npm run lab:up` deixava o container servindo a versão antiga — a análise respondia `done` com um resultado sem acordes e o app não tinha o que guardar. Agora o compose monta `lab/app` por cima (somente leitura) e o uvicorn roda com `--reload`: salvou o arquivo, o container recarrega.
+**O laboratório é um processo filho, não um container.** Começou em Docker, o que funcionava e custava a feature inteira para quem não é desenvolvedor: instale o Docker Desktop, depois o NVIDIA Container Toolkit, depois rode `npm run lab:up` num terminal — e só então a aba Laboratório faz alguma coisa. Hoje é um virtualenv que o próprio app monta e um `uvicorn` que ele sobe e mata junto com a janela. O contrato HTTP não mudou em nada — o `lab.ts` continua falando com uma URL —, e foi isso que tornou a troca segura.
+
+Duas coisas caíram fora junto. A tradução de caminhos sumiu: quem chama e quem executa enxergam o mesmo sistema de arquivos, então um caminho que chega é um caminho que abre. E o interpretador ficou no 3.10 em vez do 3.11, porque o `basic-pitch` torna o TensorFlow uma dependência obrigatória do 3.11 para cima — 600 MB e vinte e cinco pacotes a mais por um modelo que roda na CPU de qualquer jeito. As duas resoluções foram comparadas com `uv pip compile` antes da escolha; o 3.10 cai no mesmo numpy 1.26.4 do container.
 
 **Cifra automática, no estilo Chordify.** O `/harmony` do laboratório deixou de devolver só o tom: ele rastreia as batidas, tira um chroma por batida do sinal harmônico (percussão borra o chroma) e casa contra gabaritos de acorde — maior, menor, 7, m7, maj7 e power chord, que é metade de um riff de metal. O passe final é um Viterbi com penalidade fixa para trocar de acorde; sem ele o rótulo muda a cada batida e não dá para ler. A tela mostra os blocos na ordem, acende o que está tocando, pula para o trecho no clique e transpõe por semitom. A barrinha embaixo de cada acorde é a confiança — vermelha quer dizer trecho ambíguo, vale conferir de ouvido.
 

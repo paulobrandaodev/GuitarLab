@@ -15,7 +15,6 @@ settings.json
 paths.json
 __pycache__/
 *.pyc
-lab/models/
 
 # Copied out of the alphaTab package by its Vite plugin on every build, so this
 # is generated output rather than source. Both reappear after 'npm run build',

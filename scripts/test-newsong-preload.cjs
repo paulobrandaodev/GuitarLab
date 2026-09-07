@@ -170,7 +170,48 @@ contextBridge.exposeInMainWorld('api', {
     submit: none,
     refresh: none,
     refreshAll: empty,
-    onJobsUpdated: unsubscribe
+    onJobsUpdated: unsubscribe,
+    setup: {
+      status: async () => ({
+        installed: false,
+        stale: false,
+        pack: null,
+        busy: false,
+        running: false,
+        port: null,
+        gpu: null,
+        recommendedPack: 'cpu',
+        runtimeDir: '',
+        modelsDir: '',
+        runtimeBytes: 0,
+        modelBytes: 0,
+        models: [],
+        installedModels: []
+      }),
+      install: none,
+      cancel: none,
+      remove: none,
+      removeModels: none,
+      start: none,
+      stop: none,
+      fetchModel: none,
+      modelJob: none,
+      onProgress: unsubscribe
+    }
+  },
+  tools: {
+    installFfmpeg: none,
+    removeFfmpeg: none,
+    managedFfmpeg: async () => ({ path: null }),
+    onProgress: unsubscribe
+  },
+  update: {
+    check: none,
+    download: none,
+    install: none,
+    onAvailable: unsubscribe,
+    onProgress: unsubscribe,
+    onReady: unsubscribe
   },
   gear: { rig: none, setRig: none, patch: none },
   llm: {

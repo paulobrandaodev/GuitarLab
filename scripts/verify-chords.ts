@@ -41,8 +41,11 @@ async function run(): Promise<void> {
 
   const health = await labHealth()
   if (!health.reachable) {
-    // the container is optional, so a machine without it skips instead of failing
-    console.log(`  pula tudo -- laboratorio fora do ar (${health.detail}); suba com npm run lab:up`)
+    // the lab is an optional download, so a machine without it skips instead
+    // of failing — this suite is not what should discover it is not installed
+    console.log(
+      `  pula tudo -- laboratorio fora do ar (${health.detail}); instale-o na aba Laboratorio`
+    )
     done()
   }
   check('o laboratorio esta no ar', true, health.detail)

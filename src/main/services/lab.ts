@@ -3,23 +3,47 @@ import { getDb, schema } from '../db/client'
 import { saveChordMap } from '../db/repo'
 import { normalizeChordSpans } from '@shared/chords'
 import { config } from '../config'
+import { settingSource } from '../settings'
 import type { AnalysisJobView, AnalysisType } from '@shared/types'
 
 /**
- * Client for the optional Docker sidecar that runs Demucs, librosa/madmom,
- * basic-pitch and faster-whisper on the GPU. Everything here degrades to a
- * clear "lab offline" state rather than throwing, because the whole app is
- * designed to work with the container stopped.
+ * Client for the sidecar that runs Demucs, librosa, basic-pitch and
+ * faster-whisper. Everything here degrades to a clear "lab offline" state
+ * rather than throwing, because the whole app is designed to work with the lab
+ * not installed at all.
+ *
+ * This file does not care how the sidecar got there. It used to be a Docker
+ * container and is now a child process `labsetup.ts` starts, and the only trace
+ * of that change here is `setManagedLabUrl`.
  */
 
 /**
- * The container sees the media through its own mounts (`/data/stems/...`), so
- * every path it hands back has to be translated to the Windows path Electron
- * can actually open. Without this the stems land in the database as
- * `/data/stems/...`, which resolves to nothing on the host and leaves the
- * player silent.
+ * The URL of the sidecar this app started, when there is one.
  *
- * Mirrors the `PATH_MAP` in docker-compose.yml, in the other direction.
+ * A value the user typed in Settings, or a `FORGE_LAB_URL` in the environment,
+ * means "the lab lives somewhere else" — another machine with a better GPU — and
+ * has to win. Only when nothing has been configured does the managed process
+ * get to answer.
+ */
+let managedUrl: string | null = null
+
+export function setManagedLabUrl(url: string | null): void {
+  managedUrl = url
+}
+
+export function labUrl(): string {
+  if (managedUrl && settingSource('labUrl') === 'default') return managedUrl
+  return config.lab.url
+}
+
+/**
+ * Stems separated under the old Docker sidecar were recorded with the paths it
+ * saw through its mounts (`/data/stems/...`), which resolve to nothing on the
+ * host and leave the player silent.
+ *
+ * Kept after the container was removed because those rows are still in the
+ * databases of everyone who used it. `repairContainerPaths` rewrites them on
+ * first launch; this is the guard for anything that slips through.
  */
 const CONTAINER_MOUNTS: Array<{ container: string; host: () => string }> = [
   { container: '/data/stems', host: () => config.paths.stems },
@@ -52,7 +76,7 @@ export interface LabHealth {
 
 export async function labHealth(): Promise<LabHealth> {
   try {
-    const res = await fetch(`${config.lab.url}/health`, { signal: AbortSignal.timeout(2500) })
+    const res = await fetch(`${labUrl()}/health`, { signal: AbortSignal.timeout(2500) })
     if (!res.ok) {
       return { reachable: false, gpu: null, cuda: false, models: [], detail: `HTTP ${res.status}` }
     }
@@ -75,7 +99,7 @@ export async function labHealth(): Promise<LabHealth> {
       gpu: null,
       cuda: false,
       models: [],
-      detail: msg.includes('timeout') ? 'container não respondeu' : 'container parado'
+      detail: msg.includes('timeout') ? 'não respondeu' : 'desligado'
     }
   }
 }
@@ -112,7 +136,7 @@ export async function submitJob(
   const db = getDb()
   const health = await labHealth()
   if (!health.reachable) {
-    return { error: `Laboratório indisponível: ${health.detail}. Rode "npm run lab:up".` }
+    return { error: `Laboratório indisponível: ${health.detail}. Abra a aba Laboratório para ligá-lo.` }
   }
 
   const body: Record<string, unknown> = { audio_path: audioPath, ...params }
@@ -129,7 +153,7 @@ export async function submitJob(
     .get()
 
   try {
-    const res = await fetch(`${config.lab.url}/${type}`, {
+    const res = await fetch(`${labUrl()}/${type}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -172,7 +196,7 @@ export async function refreshJob(jobId: number): Promise<AnalysisJobView | null>
   if (row.status === 'done' || row.status === 'error') return toView(row)
 
   try {
-    const res = await fetch(`${config.lab.url}/jobs/${row.remoteJobId}`, {
+    const res = await fetch(`${labUrl()}/jobs/${row.remoteJobId}`, {
       signal: AbortSignal.timeout(5000)
     })
     if (!res.ok) return toView(row)
@@ -287,6 +311,27 @@ function applyJobResult(songId: number, type: AnalysisType, result: Record<strin
         beatsMs: Array.isArray(result.beats) ? (result.beats as number[]).map(Number) : [],
         spans
       })
+    }
+    return
+  }
+
+  /*
+   * Audio-to-MIDI used to be the one job whose result went nowhere: the .mid
+   * files were written next to the stems and the row was never created, so the
+   * button worked, the job said "done", and nothing appeared anywhere in the
+   * app. `midi` was already a media kind — this just files the output under it.
+   */
+  if (type === 'transcribe') {
+    const midis = Array.isArray(result.midi) ? (result.midi as unknown[]) : []
+    for (const raw of midis) {
+      if (typeof raw !== 'string' || !raw) continue
+      db.insert(schema.mediaAssets)
+        .values({ songId, kind: 'midi', path: toHostPath(raw) })
+        .onConflictDoUpdate({
+          target: schema.mediaAssets.path,
+          set: { songId, kind: 'midi' }
+        })
+        .run()
     }
     return
   }

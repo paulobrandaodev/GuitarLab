@@ -1,0 +1,24 @@
+# The lab's Python dependencies, minus torch and Demucs.
+#
+# Installed last, after torch has been pinned from its own index, so nothing
+# here can pull a different build of it. See labsetup-core.ts for why the
+# interpreter is 3.10 and why that is what keeps TensorFlow out of this tree.
+
+fastapi==0.120.4
+uvicorn[standard]==0.38.0
+pydantic==2.12.4
+
+# 1.26.4 is what the CUDA container resolved to, so it is the only numeric
+# stack Demucs and librosa have been exercised against here. Without this pin
+# the resolver takes numpy 2.2, which no part of this set has been tested on.
+numpy<2
+
+librosa==0.11.0
+soundfile==0.13.1
+
+# No extra: on 3.10 the wheel already picks onnxruntime on Windows and
+# tflite-runtime on Linux. Asking for [onnx] would add nothing and asking for
+# [tf] would add 600 MB.
+basic-pitch==0.4.0
+
+faster-whisper==1.2.0

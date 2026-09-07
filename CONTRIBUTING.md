@@ -17,8 +17,10 @@ Be decent to other people. See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Getting set up
 
-Requirements: **Node 22+**, **FFmpeg on your PATH** (the only hard dependency),
-and Git. Docker with an NVIDIA GPU is optional and only needed for the audio lab.
+Requirements: **Node 22+**, **FFmpeg on your PATH** and Git. The audio lab needs
+nothing else installed: the app downloads its own Python and builds its own
+virtualenv, so there is no Docker and no system Python involved. An NVIDIA GPU
+(driver 525+) only decides which PyTorch pack you install.
 
 ```bash
 git clone https://github.com/paulobrandaodev/GuitarLab.git
@@ -49,7 +51,8 @@ src/main/       Node side: SQLite, IPC handlers, importers, external services
 src/preload/    the typed contextBridge — the only way the two sides talk
 src/renderer/   React: design system + one folder per screen
 src/shared/     code both processes import — keep it pure (no electron, no DOM)
-lab/            optional Python sidecar (FastAPI + Demucs + librosa + whisper)
+lab/            the Python sidecar (FastAPI + Demucs + librosa + whisper)
+                app/ is its source; requirements/ is what the app installs
 scripts/        the test suite
 ```
 
@@ -83,11 +86,11 @@ npm run test:sort      # list ordering, with standard E pinned to the top
 npm run test:stretch   # renders 440 Hz and measures: speed and pitch really are independent
 npm run test:tone      # tuning → pitch shifter, the CTRL switch, the patch list
 npm run test:llm       # the tone prompt against real providers
-npm run test:chordmap  # end-to-end chord detection (skips if the container is down)
+npm run test:chordmap  # end-to-end chord detection (skips if the lab is off)
 ```
 
 Some need context: `test:llm` calls real AI providers and needs a key;
-`test:chordmap` skips itself when the lab container is not running; `test:player`,
+`test:chordmap` skips itself when the lab is not running; `test:player`,
 `test:newsong` and `test:media` need `npm run build` first.
 
 **If you are on Linux or macOS and the Electron tests fail immediately**, check

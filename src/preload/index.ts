@@ -156,6 +156,52 @@ const api = {
       const listener = (_e: unknown, jobs: unknown[]): void => cb(jobs)
       ipcRenderer.on('lab:jobsUpdated', listener)
       return () => ipcRenderer.removeListener('lab:jobsUpdated', listener)
+    },
+    setup: {
+      status: () => invoke('lab:setup:status'),
+      install: (pack: string) => invoke('lab:setup:install', pack),
+      cancel: () => invoke('lab:setup:cancel'),
+      remove: () => invoke('lab:setup:remove'),
+      removeModels: () => invoke('lab:setup:removeModels'),
+      start: () => invoke('lab:process:start'),
+      stop: () => invoke('lab:process:stop'),
+      fetchModel: (family: string, id: string) => invoke('lab:models:fetch', family, id),
+      modelJob: (jobId: string) => invoke('lab:models:job', jobId),
+      onProgress: (cb: (progress: unknown) => void) => {
+        const listener = (_e: unknown, progress: unknown): void => cb(progress)
+        ipcRenderer.on('lab:setup:progress', listener)
+        return () => ipcRenderer.removeListener('lab:setup:progress', listener)
+      }
+    }
+  },
+  tools: {
+    installFfmpeg: () => invoke('media:ffmpeg:install'),
+    removeFfmpeg: () => invoke('media:ffmpeg:remove'),
+    managedFfmpeg: () => invoke('media:ffmpeg:managed'),
+    onProgress: (cb: (progress: unknown) => void) => {
+      const listener = (_e: unknown, progress: unknown): void => cb(progress)
+      ipcRenderer.on('media:tool:progress', listener)
+      return () => ipcRenderer.removeListener('media:tool:progress', listener)
+    }
+  },
+  update: {
+    check: () => invoke('update:check'),
+    download: () => invoke('update:download'),
+    install: () => invoke('update:install'),
+    onAvailable: (cb: (info: unknown) => void) => {
+      const listener = (_e: unknown, info: unknown): void => cb(info)
+      ipcRenderer.on('update:available', listener)
+      return () => ipcRenderer.removeListener('update:available', listener)
+    },
+    onProgress: (cb: (info: unknown) => void) => {
+      const listener = (_e: unknown, info: unknown): void => cb(info)
+      ipcRenderer.on('update:progress', listener)
+      return () => ipcRenderer.removeListener('update:progress', listener)
+    },
+    onReady: (cb: (info: unknown) => void) => {
+      const listener = (_e: unknown, info: unknown): void => cb(info)
+      ipcRenderer.on('update:ready', listener)
+      return () => ipcRenderer.removeListener('update:ready', listener)
     }
   },
   gear: {

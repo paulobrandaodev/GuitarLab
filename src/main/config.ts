@@ -5,6 +5,7 @@ import {
   LEGACY_SLUG,
   fileEnv,
   legacyUserData,
+  mediaRoot,
   projectRoot,
   userData
 } from './config-env'
@@ -45,9 +46,9 @@ export const config = {
   paths: {
     db: join(userData, `${APP_SLUG}.db`),
     legacyDb: join(legacyUserData, `${LEGACY_SLUG}.db`),
-    gptabs: dir('gptabs', 'GPTABS_DIR', join(projectRoot, 'gptabs')),
-    songs: dir('songs', 'SONGS_DIR', join(projectRoot, 'songs')),
-    stems: dir('stems', 'STEMS_DIR', join(projectRoot, '.stems')),
+    gptabs: dir('gptabs', 'GPTABS_DIR', join(mediaRoot, 'gptabs')),
+    songs: dir('songs', 'SONGS_DIR', join(mediaRoot, 'songs')),
+    stems: dir('stems', 'STEMS_DIR', join(mediaRoot, '.stems')),
     waveforms: join(userData, 'waveforms'),
     screenshots: join(userData, 'screenshots')
   },

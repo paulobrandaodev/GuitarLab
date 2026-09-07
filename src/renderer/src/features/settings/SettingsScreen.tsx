@@ -9,7 +9,7 @@ import {
   cx
 } from '../../components/ui'
 import { IconSpotify, IconYoutube, IconSparkle, IconLab, IconWave } from '../../components/ui/icons'
-import { api } from '../../lib/api'
+import { api, isError } from '../../lib/api'
 import { SettingField } from './SettingField'
 import { LOCALES, LOCALE_NAMES } from '@shared/i18n'
 import { useStrings } from '../../lib/i18n'
@@ -137,6 +137,35 @@ function Group({
 export function SettingsScreen(): ReactNode {
   const str = useStrings()
   const { toast, show, clear } = useToast()
+  /*
+   * FFmpeg is the app's one outside dependency, and "install it and put it on
+   * your PATH" is exactly where someone who does not use a terminal stops. The
+   * download is the same one the Lab uses, so this is a button rather than a
+   * paragraph of instructions.
+   */
+  const [ffmpeg, setFfmpeg] = useState<string | null>(null)
+
+  useEffect(() => {
+    return api.tools.onProgress((progress) => {
+      if (progress.status === 'downloading') {
+        const pct = progress.totalBytes
+          ? ` ${Math.round((progress.receivedBytes / progress.totalBytes) * 100)}%`
+          : ''
+        setFfmpeg(`Baixando${pct}`)
+      } else if (progress.status === 'extracting') {
+        setFfmpeg('Instalando')
+      }
+    })
+  }, [])
+
+  const installFfmpeg = async (): Promise<void> => {
+    setFfmpeg('Baixando')
+    const res = await api.tools.installFfmpeg()
+    setFfmpeg(null)
+    if (isError(res)) show(res.error, 'danger')
+    else show('FFmpeg instalado', 'ok')
+    await refresh()
+  }
   const [status, setStatus] = useState<IntegrationStatus | null>(null)
   const [snapshot, setSnapshot] = useState<SettingsSnapshot | null>(null)
   const [paths, setPaths] = useState<{
@@ -291,7 +320,14 @@ export function SettingsScreen(): ReactNode {
           title="FFmpeg"
           ok={status.ffmpeg.available}
           detail={status.ffmpeg.version ?? 'não encontrado no PATH'}
-          hint="O único requisito obrigatório: lê tags, mede loudness e gera a forma de onda. Não precisa de Docker."
+          hint="O único requisito externo: lê tags, mede loudness e gera a forma de onda. O app pode baixá-lo para você."
+          action={
+            status.ffmpeg.available ? undefined : (
+              <NeuButton variant="accent" onClick={installFfmpeg} disabled={ffmpeg !== null}>
+                {ffmpeg ? ffmpeg : 'Baixar e instalar'}
+              </NeuButton>
+            )
+          }
         />
 
         <Row
@@ -345,7 +381,7 @@ export function SettingsScreen(): ReactNode {
           hint={
             status.lab.reachable
               ? `GPU: ${status.lab.gpu ?? 'não informada'}`
-              : 'Suba com "npm run lab:up". Só é necessário para stems e análise automática.'
+              : 'Instale e ligue na aba Laboratório. Só é necessário para stems e análise automática.'
           }
         />
       </div>

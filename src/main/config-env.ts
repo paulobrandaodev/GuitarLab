@@ -107,5 +107,22 @@ export const legacyUserData = join(dirname(userData), LEGACY_SLUG)
 
 export const projectRoot = findProjectRoot()
 
+/**
+ * Where the media folders default to.
+ *
+ * In a checkout that is the repo root, which is what every script and every
+ * `npm run dev` expects. In an installed build it must not be: `projectRoot`
+ * there is the directory the installer wrote to, so the defaults would put a
+ * user's music library and several gigabytes of stems inside the program
+ * folder — somewhere nobody browses to, and somewhere an uninstall would be
+ * entitled to delete.
+ *
+ * `Music/GuitarLab` is the answer for an installed app. It is still only a
+ * default: the folders picked in Settings win, and so does anything in `.env`.
+ */
+export const mediaRoot = app.isPackaged
+  ? join(app.getPath('music'), APP_NAME)
+  : projectRoot
+
 /** Everything in the `.env` file at the project root, parsed once. */
 export const fileEnv = parseEnvFile(join(projectRoot, '.env'))

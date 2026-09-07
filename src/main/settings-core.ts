@@ -154,6 +154,31 @@ export const SETTING_SPECS: readonly SettingSpec[] = [
     group: 'lab'
   },
   { key: 'demucsSegment', envKeys: ['DEMUCS_SEGMENT'], secret: false, fallback: '7', group: 'lab' },
+  {
+    key: 'whisperModel',
+    envKeys: ['WHISPER_MODEL'],
+    secret: false,
+    fallback: 'small',
+    group: 'lab'
+  },
+
+  /*
+   * Where the lab runtime and its weights live.
+   *
+   * Empty means "next to the database, in userData". They are overridable
+   * because the CUDA pack is around 7 GB and the models another 2, and on a
+   * machine with a small system drive that is not a reasonable thing to force
+   * into the roaming profile.
+   */
+  { key: 'labRuntimeDir', envKeys: ['LAB_RUNTIME_DIR'], secret: false, fallback: '', group: 'lab' },
+  { key: 'labModelsDir', envKeys: ['LAB_MODELS_DIR'], secret: false, fallback: '', group: 'lab' },
+  {
+    key: 'labAutoStart',
+    envKeys: ['LAB_AUTO_START'],
+    secret: false,
+    fallback: 'true',
+    group: 'lab'
+  },
 
   { key: 'ffmpegPath', envKeys: ['FFMPEG_PATH'], secret: false, fallback: '', group: 'media' },
   {
@@ -163,6 +188,13 @@ export const SETTING_SPECS: readonly SettingSpec[] = [
     fallback: 'GuitarLab/0.1 ( guitarlab )',
     group: 'app'
   },
+
+  /*
+   * Checking for updates is on by default and installing one never is: the app
+   * can be twenty minutes into separating a track, and restarting under someone
+   * without warning is not an acceptable way to ship a fix.
+   */
+  { key: 'autoUpdate', envKeys: ['GUITARLAB_AUTO_UPDATE'], secret: false, fallback: 'true', group: 'app' },
 
   // 'auto' means "follow the operating system". It is stored as 'auto' and
   // resolved on every read, so that choosing it keeps following the OS instead

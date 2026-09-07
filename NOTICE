@@ -74,6 +74,13 @@ FFmpeg — a deliberate packaging decision
 
   Do not add an FFmpeg binary to the installer or to this repository.
 
+  Settings has a button that downloads a prebuilt FFmpeg (gyan.dev on Windows,
+  johnvansickle on Linux) into the user's own data directory. That is the same
+  separation, not an exception to it: nothing is distributed with the app, and
+  the binary is fetched by the user, at their request, onto their own machine.
+  The button is a convenience for people who do not use a terminal — it must
+  never become a file committed here or an artefact inside the installer.
+
   Note: dist/win-unpacked/ffmpeg.dll is a different thing entirely — it is
   Chromium's restricted LGPL build, supplied by Electron and covered by
   Electron's own license.

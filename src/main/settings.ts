@@ -155,6 +155,17 @@ export function settingValue(key: string): string {
   return resolveSetting(key, inputs()).value
 }
 
+/**
+ * Where the resolved value came from.
+ *
+ * The lab needs this to tell "the user pointed me at a lab on another machine"
+ * apart from "nobody has ever touched this", because only the second case may
+ * be overridden by the URL of the sidecar the app started itself.
+ */
+export function settingSource(key: string): SettingView['source'] {
+  return resolveSetting(key, inputs()).source
+}
+
 export function settingInt(key: string, fallback: number): number {
   const n = Number.parseInt(settingValue(key), 10)
   return Number.isFinite(n) ? n : fallback

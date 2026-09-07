@@ -10,6 +10,8 @@ import { pickLocale } from '@shared/i18n'
 import { initDb, closeDb } from './db/client'
 import { registerIpc } from './ipc'
 import { refreshAllRunning } from './services/lab'
+import { autoStartSidecar, stopSidecar } from './services/labsetup'
+import { registerUpdater } from './services/updater'
 import { startPlayerServer, stopPlayerServer } from './services/ytplayer'
 
 let mainWindow: BrowserWindow | null = null
@@ -232,7 +234,18 @@ app.whenReady().then(() => {
   setSystemLocale(pickLocale([...app.getPreferredSystemLanguages(), app.getLocale()]))
   registerSettingsEffects()
 
-  for (const dir of [config.paths.stems, config.paths.waveforms, config.paths.screenshots]) {
+  /*
+   * Songs and tabs are created too, not only the app's own folders. On an
+   * installed build these default under Music/GuitarLab, and a folder that does
+   * not exist yet is a folder the user cannot be told to drop files into.
+   */
+  for (const dir of [
+    config.paths.songs,
+    config.paths.gptabs,
+    config.paths.stems,
+    config.paths.waveforms,
+    config.paths.screenshots
+  ]) {
     mkdirSync(dir, { recursive: true })
   }
 
@@ -248,7 +261,17 @@ app.whenReady().then(() => {
     console.error('[youtube] player local não subiu:', err)
   )
 
-  // mirror lab job progress into the local DB while the container works
+  /*
+   * Bring the lab up if it is installed. It is a child process now rather than
+   * a container someone starts in a terminal, so nothing else would ever start
+   * it — and a failure is only a lab that stays off, which the whole app is
+   * already designed to survive.
+   */
+  void autoStartSidecar()
+
+  registerUpdater(() => mainWindow)
+
+  // mirror lab job progress into the local DB while the lab works
   jobTimer = setInterval(() => {
     void refreshAllRunning().then((jobs) => {
       if (jobs.length && mainWindow && !mainWindow.isDestroyed()) {
@@ -269,5 +292,8 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   if (jobTimer) clearInterval(jobTimer)
   stopPlayerServer()
+  // Kills the whole tree: the sidecar spawns Demucs, and a stranded python
+  // holds on to several gigabytes of VRAM long after the window is gone.
+  void stopSidecar()
   closeDb()
 })

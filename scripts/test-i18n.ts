@@ -157,7 +157,21 @@ const SAME_ON_PURPOSE = new Set([
 
   /* Platform names. Nobody translates "Ko-fi". */
   'support.sponsor',
-  'support.kofi'
+  'support.kofi',
+
+  /*
+   * The audio lab. "FFmpeg" is a proper noun in every language; the rest are
+   * words Portuguese and Spanish spell identically — checked one at a time,
+   * not assumed. Note what is *not* here: "Baixar"/"Descargar" and
+   * "Baixando"/"Descargando" do differ, and are translated.
+   */
+  'tools.ffmpeg.title',
+  'tools.ffmpeg.extracting',
+  'lab.jobStatus.canceled',
+  'lab.setup.recommended',
+  'lab.setup.installing',
+  'lab.setup.models',
+  'lab.setup.diskModels'
 ])
 
 const pt = Object.fromEntries(leaves(CATALOGS['pt-BR'] as unknown as Node))

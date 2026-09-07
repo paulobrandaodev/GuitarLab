@@ -1,0 +1,5 @@
+# Kept apart from base.txt so it installs after torch and before everything
+# else. Demucs declares a bare `torch` dependency: resolved in the same pass as
+# the pinned one it is fine, resolved before it the default PyPI wheel wins and
+# a user who chose the CUDA pack silently gets the CPU build.
+demucs==4.0.1

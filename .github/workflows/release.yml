@@ -39,10 +39,25 @@ jobs:
       - name: Install
         run: npm ci
 
+      # The subset that needs nothing external. A release is the worst place to
+      # find out the bundle does not build, and `npm run build` below would not
+      # catch a broken catalogue or a settings regression.
+      - name: Test (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum npm run test:ci
+
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        run: npm run test:ci
+
       # electron-builder produces installers for the platform it runs on;
       # better-sqlite3 has to be compiled there too. There is no cross-compiling
       # out of this, which is why the matrix exists.
+      #
+      # `npm run build` is not optional here. `build.files` is `out/**`, which
+      # is gitignored — on a clean checkout electron-builder on its own would
+      # happily package an app with no bundle in it.
       - name: Build and publish
-        run: npx electron-builder --publish always
+        run: npm run build && npx electron-builder --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

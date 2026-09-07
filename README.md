@@ -38,9 +38,12 @@ Grab an installer from [Releases](https://github.com/paulobrandaodev/GuitarLab/r
 | Windows | `GuitarLab-<version>-instalador.exe`, or the portable build |
 | Linux | `.AppImage` (no install) or `.deb` |
 
-**One requirement, and only one: [FFmpeg](https://ffmpeg.org/download.html)**
-must be installed and on your `PATH`. Everything else the app can live without.
-Without FFmpeg, importing audio fails — the app tells you so on the first run.
+**Nothing else to install.** The app needs [FFmpeg](https://ffmpeg.org/), and
+if it is not already on your `PATH` there is a button in Settings that downloads
+it for you. The audio lab — stem separation and analysis — is a download inside
+the app too, so there is no Python and no Docker to set up.
+
+Everything except the lab works the moment the installer finishes.
 
 **The Windows builds are not code-signed.** SmartScreen will say "unknown
 publisher": click *More info* → *Run anyway*. A signing certificate costs
@@ -164,7 +167,7 @@ them is Portuguese, for the reason just above.
 <td><img src="docs/screenshots/10-progresso.png" alt="Progress, consistency and BPM"></td>
 </tr>
 <tr>
-<td><b>Lab</b> — stem separation (Demucs), BPM and beats, key plus a chord track, audio→MIDI, lyric transcription. Entirely optional: the container is switched off in this shot, and the app says so rather than breaking.</td>
+<td><b>Lab</b> — stem separation (Demucs), BPM and beats, key plus a chord track, audio→MIDI, lyric transcription. Entirely optional: the lab is not installed in this shot, and the app says so rather than breaking.</td>
 <td><b>Progress</b> — today's queue (spaced repetition), consistency heatmap, BPM curve, AI-generated practice plan.</td>
 </tr>
 <tr>
@@ -181,23 +184,31 @@ them is Portuguese, for the reason just above.
 
 ## The audio lab (optional)
 
-Stem separation and automatic BPM/key/chord analysis run in a container. **The
-app works completely without it** — this is the only part that needs Docker.
+Stem separation, BPM and beat tracking, key and chords, audio→MIDI and lyric
+transcription. **The app works completely without it** — it is off until you
+install it, and every screen that uses it says so rather than breaking.
 
-```bash
-npm run lab:up       # CPU; works anywhere
-npm run lab:up:gpu   # NVIDIA, needs the NVIDIA Container Toolkit
-npm run lab:logs
-npm run lab:down
-```
+It installs from inside the app: open the **Lab** tab and pick a pack.
 
-Be warned: the CUDA base image is large and the final image lands somewhere
-around 12–15 GB, plus model weights downloaded on first use. Worth it if you
-want stems; skip it entirely otherwise.
+| Pack | Download | On disk | For |
+|---|---|---|---|
+| Processor (CPU) | ~400 MB | ~1.1 GB | any machine |
+| NVIDIA (CUDA) | ~2.7 GB | ~7 GB | an NVIDIA card, driver 525+ |
 
-Media folders default to the ones in the repository. If yours live elsewhere,
-copy [.env.compose.example](.env.compose.example) to `.env` next to
-`docker-compose.yml` and point it at the same folders you chose in Settings.
+The app downloads [uv](https://github.com/astral-sh/uv), has it fetch a private
+CPython 3.10, builds a virtualenv and installs PyTorch, Demucs, librosa,
+basic-pitch and faster-whisper into it. None of that is in the installer, which
+is why the installer is ~116 MB rather than several gigabytes. Model weights are
+another download again, listed with their sizes and fetched by the button next
+to each one.
+
+**The CUDA pack needs only the NVIDIA driver.** No CUDA Toolkit, no Container
+Toolkit, no Docker — the CUDA runtime rides along inside the `nvidia-*-cu12`
+wheels that PyTorch pulls in. This is the main practical reason the container is
+gone: it moved the GPU from "install Docker Desktop and a container runtime" to
+"you already have the driver".
+
+Everything lands in your app data folder and **Remove the lab** puts it back.
 
 ---
 
@@ -255,12 +266,21 @@ matcher the importer uses), prefer wav/flac over mp3, download into
 immediately. A partial download is deleted: a truncated wav in `songs/` would be
 a corrupt track forever.
 
-**The sidecar runs the repository's code, not the image's.** The Dockerfile
-copies `lab/app` into the image, so editing the Python and running
-`npm run lab:up` left the container serving the old version — the analysis
-answered `done` with a result that had no chords and the app had nothing to
-store. Now compose mounts `lab/app` over the top (read-only) and uvicorn runs
-with `--reload`: save the file, the container reloads.
+**The lab is a child process, not a container.** It began as Docker, which
+worked and cost every non-developer the whole feature: install Docker Desktop,
+then the NVIDIA Container Toolkit, then run `npm run lab:up` in a terminal, and
+only then does the Lab tab do anything. It is now a virtualenv the app builds
+for itself and a `uvicorn` it spawns and kills with the window. The HTTP
+contract did not change at all — `lab.ts` still talks to a URL — which is what
+made the swap safe.
+
+Two things fell out of it. Path translation is gone: caller and sidecar see the
+same filesystem, so a path that arrives is a path that opens. And the
+interpreter is pinned at 3.10 rather than 3.11, because `basic-pitch` makes
+TensorFlow an unconditional dependency from 3.11 up — 600 MB and twenty-five
+packages for a model that runs on the CPU either way. Both resolutions were
+compared with `uv pip compile` before choosing; 3.10 lands on the same numpy
+1.26.4 the container did.
 
 **Automatic chord charts, Chordify-style.** The lab's `/harmony` stopped
 returning just the key: it tracks the beats, takes a chroma per beat from the

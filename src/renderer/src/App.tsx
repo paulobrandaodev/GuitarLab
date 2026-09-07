@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { IconButton, Toast, useToast, cx } from './components/ui'
 import { AiActivityBar } from './components/AiActivityBar'
 import { SetupBanner } from './components/SetupBanner'
+import { UpdateBanner } from './components/UpdateBanner'
 import { connectAiActivity } from './lib/aiActivity'
 import { useLocaleStore } from './lib/i18n'
 import {
@@ -229,6 +230,7 @@ export default function App(): ReactNode {
         <Screen route={route} />
       </main>
       <AiActivityBar />
+      <UpdateBanner />
       <SetupBanner onOpenSettings={() => go({ name: 'settings' })} />
       <BottomNav />
       {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={clear} />}

@@ -190,7 +190,7 @@ export const ptBR = {
 
     ffmpegMissing: 'não encontrado no PATH',
     ffmpegHint:
-      'O único requisito obrigatório: lê tags, mede loudness e gera a forma de onda. Não precisa de Docker.',
+      'O único requisito externo: lê tags, mede loudness e gera a forma de onda. O app pode baixá-lo para você.',
     spotifyHint:
       'O login abre no seu navegador (PKCE, sem senha no app). Serve para metadados e para comandar o Spotify aberto via Connect.',
     youtubeQuota: (used: number, limit: number) =>
@@ -200,7 +200,7 @@ export const ptBR = {
     labGpu: (gpu: string) => `GPU: ${gpu}`,
     labGpuUnknown: 'não informada',
     labOffline:
-      'Suba com "npm run lab:up". Só é necessário para stems e análise automática.',
+      'Instale e ligue na aba Laboratório. Só é necessário para stems e análise automática.',
 
     fields: {
       spotifyClientId: 'Client ID',
@@ -320,6 +320,138 @@ export const ptBR = {
   },
 
   /** Errors raised in the main process that reach the interface. */
+  /*
+   * O laboratório de áudio.
+   *
+   * Esta tela ficou de fora do catálogo por muito tempo, com o texto fixo em
+   * português dentro do componente. Ela entrou aqui quando deixou de exigir
+   * Docker: passou a ser a primeira coisa que alguém que não é desenvolvedor
+   * encara, e uma instalação de 2,7 GB explicada num idioma que a pessoa não lê
+   * é uma instalação que não acontece.
+   */
+  lab: {
+    title: 'Laboratório de Áudio',
+    subtitle: 'Separação de stems e análise, rodando na sua máquina',
+    on: 'Laboratório ativo',
+    off: 'Laboratório desligado',
+    jobs: {
+      stems: 'Separar stems',
+      rhythm: 'BPM e grade de batidas',
+      harmony: 'Tom e acordes',
+      transcribe: 'Áudio → MIDI',
+      lyrics: 'Transcrever letra'
+    },
+    jobDesc: {
+      stems: 'O Demucs separa em vocal, bateria, baixo, guitarra, piano e outros. Gera seu guitar-only e o backing track.',
+      rhythm: 'Detecta andamento, batidas e compassos para travar o loop A/B na grade.',
+      harmony: 'Detecta a tonalidade e a progressão de acordes ao longo do tempo.',
+      transcribe: 'O basic-pitch converte o áudio em MIDI — um rascunho de tablatura.',
+      lyrics: 'O faster-whisper transcreve a letra com marcação de tempo.'
+    },
+    run: 'Rodar',
+    rerun: 'Rodar de novo',
+    sent: (job: string) => `${job} enviado para o laboratório`,
+    sendFailed: 'Falha ao enviar o job',
+    jobStatus: {
+      queued: 'na fila',
+      running: 'rodando',
+      done: 'concluído',
+      error: 'erro',
+      canceled: 'cancelado'
+    },
+    stemsMade: (count: number) => `Stems gerados (${count})`,
+    openFolder: 'abrir pasta',
+    history: 'Histórico de jobs',
+    chooseSong: 'música',
+    chooseSongPlaceholder: '— escolha uma música —',
+    noSongs: 'Nenhuma música com áudio local',
+    noSongsDesc:
+      'O laboratório precisa do arquivo de áudio. Coloque mp3/wav/flac na pasta de músicas e importe.',
+    songNoAudio: 'Essa música ainda não tem áudio local',
+    songNoAudioDesc:
+      'O laboratório escuta a gravação. Baixe a faixa pelo botão WAV no setlist, ou coloque o arquivo na pasta de áudio e importe.',
+    goToSetlist: 'Ir para o Setlist',
+    demucsModel: {
+      six: '6 stems (inclui guitarra)',
+      four: '4 stems (melhor qualidade)',
+      fourFt: '4 stems fine-tuned (mais lento)'
+    },
+    setup: {
+      title: 'Instalar o laboratório',
+      intro:
+        'O laboratório roda os modelos pesados na sua máquina. Ele não vem no instalador para não deixá-lo enorme — escolha abaixo e o app baixa e configura tudo sozinho.',
+      gpuFound: (name: string, driver: string) => `${name} · driver ${driver}`,
+      gpuNone: 'Nenhuma placa NVIDIA encontrada — o pacote de CPU é o certo aqui',
+      recommended: 'recomendado',
+      packCpu: 'Processador (CPU)',
+      packCpuDesc:
+        'Funciona em qualquer máquina. Separar uma música leva alguns minutos em vez de alguns segundos.',
+      packCuda: 'Placa NVIDIA (CUDA)',
+      packCudaDesc:
+        'Bem mais rápido. Precisa só do driver da NVIDIA — nada de CUDA Toolkit nem Docker.',
+      install: (size: string) => `Instalar · ${size}`,
+      installing: 'Instalando',
+      cancel: 'Cancelar instalação',
+      canceled: 'Instalação cancelada',
+      timeWarning:
+        'Pode levar de alguns minutos a meia hora, conforme a sua internet. Dá para fechar esta aba — o download continua.',
+      phase: {
+        uv: 'preparando o instalador',
+        python: 'baixando o Python',
+        venv: 'criando o ambiente',
+        torch: 'baixando o PyTorch',
+        demucs: 'instalando o Demucs',
+        base: 'instalando o resto',
+        done: 'pronto',
+        error: 'falhou'
+      },
+      ready: 'Laboratório instalado',
+      packInUse: (pack: string) => `pacote ${pack}`,
+      start: 'Ligar',
+      stop: 'Desligar',
+      starting: 'Ligando',
+      remove: 'Remover o laboratório',
+      removeConfirm:
+        'Isso apaga o ambiente Python do laboratório. Os modelos baixados ficam. Continuar?',
+      removeModels: 'Apagar os modelos',
+      removeModelsConfirm: 'Isso apaga os modelos baixados. Eles serão baixados de novo quando precisar. Continuar?',
+      stale: 'Esta instalação é de uma versão anterior',
+      staleDesc: 'Reinstale para acompanhar as versões que esta versão do app espera.',
+      diskRuntime: 'ambiente',
+      diskModels: 'modelos',
+      models: 'Modelos',
+      modelsDesc:
+        'Baixados na primeira vez que você usa cada um. Antecipe aqui para não esperar no meio de um job.',
+      download: 'Baixar',
+      downloading: 'Baixando',
+      downloaded: 'baixado',
+      folders: 'Pastas'
+    }
+  },
+  tools: {
+    ffmpeg: {
+      title: 'FFmpeg',
+      missing: 'O FFmpeg não foi encontrado',
+      missingDesc:
+        'O app usa o FFmpeg para ler, converter e medir o volume dos áudios. Sem ele, importar música não funciona.',
+      install: 'Baixar e instalar',
+      installing: 'Baixando o FFmpeg',
+      extracting: 'Instalando',
+      installed: (path: string) => `Instalado pelo app em ${path}`,
+      remove: 'Remover',
+      onPath: 'Encontrado no sistema'
+    }
+  },
+  update: {
+    available: (version: string) => `Versão ${version} disponível`,
+    download: 'Baixar',
+    downloading: 'Baixando a atualização',
+    ready: (version: string) => `Versão ${version} pronta para instalar`,
+    restart: 'Reiniciar e atualizar',
+    later: 'Depois',
+    upToDate: 'Você está na versão mais recente',
+    check: 'Procurar atualizações'
+  },
   errors: {
     songNotFound: 'Música não encontrada',
     titleRequired: 'A música precisa de um título',
@@ -333,7 +465,7 @@ export const ptBR = {
     aiNoJson: 'A IA não devolveu um patch em JSON legível — tente de novo.',
     aiNoBlocks: 'A IA respondeu, mas sem nenhum bloco utilizável — tente de novo.',
     labUnreachable: (detail: string) =>
-      `Laboratório indisponível: ${detail}. Rode "npm run lab:up".`,
+      `Laboratório indisponível: ${detail}. Abra a aba Laboratório para ligá-lo.`,
     labRefused: (detail: string) => `Laboratório recusou o job: ${detail}`,
     spotifyNotConnected: 'Spotify não conectado',
     spotifyNotConfigured: 'O Client ID do Spotify não está configurado — coloque em Ajustes',

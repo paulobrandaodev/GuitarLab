@@ -1,12 +1,17 @@
 """
-Setlist Lab — audio analysis sidecar.
+GuitarLab — audio analysis sidecar.
 
-Runs the heavy models that are painful to install natively on Windows: Demucs
-for stem separation, librosa/madmom for tempo and beats, chord/key estimation,
-basic-pitch for audio-to-MIDI and faster-whisper for lyric timing.
+Runs the heavy models: Demucs for stem separation, librosa for tempo, beats and
+chord/key estimation, basic-pitch for audio-to-MIDI and faster-whisper for lyric
+timing.
 
 Everything is a background job with progress, because separating an 8-minute
 track is not an HTTP-request-shaped operation.
+
+This used to run inside a CUDA container. It is now a child process the app
+starts out of a venv it built itself, which is why there is no longer any path
+translation here: the caller and this process see the same filesystem, so a
+path that arrives is a path that can be opened.
 """
 
 from __future__ import annotations
@@ -14,7 +19,9 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import threading
+import time
 import traceback
 import uuid
 from dataclasses import dataclass, field
@@ -24,28 +31,101 @@ from typing import Any, Callable
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-app = FastAPI(title="Setlist Lab", version="0.1.0")
+app = FastAPI(title="GuitarLab Lab", version="0.2.0")
 
-STEM_DIR = Path(os.environ.get("STEMS_DIR", "/data/stems"))
+# No default. Guessing a directory here would mean silently writing several
+# gigabytes of stems somewhere the app will never look for them.
+_stems = os.environ.get("STEMS_DIR")
+if not _stems:
+    raise RuntimeError("STEMS_DIR não foi definido — quem inicia o lab precisa passá-lo")
+STEM_DIR = Path(_stems)
 STEM_DIR.mkdir(parents=True, exist_ok=True)
 
-# Host paths arrive from the Electron app; the container sees them under mounts.
-PATH_MAP: list[tuple[str, str]] = []
-for entry in os.environ.get("PATH_MAP", "").split(";"):
-    if ":" in entry and entry.count(":") >= 1:
-        host, container = entry.rsplit("=>", 1) if "=>" in entry else (None, None)
-        if host and container:
-            PATH_MAP.append((host.strip().replace("\\", "/").lower(), container.strip()))
+MODELS_DIR = Path(os.environ.get("TORCH_HOME", STEM_DIR.parent / "lab-models"))
+# One empty file per model that finished downloading. Demucs stores its weights
+# under hashed filenames from a remote bag definition, so there is no reliable
+# way to ask "is htdemucs_6s here?" offline. Recording it ourselves is honest
+# and survives a restart.
+FETCHED_DIR = MODELS_DIR / ".fetched"
+FETCHED_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def to_container_path(p: str) -> Path:
-    """Translate a Windows host path into its bind-mounted container path."""
-    normalized = p.replace("\\", "/")
-    lowered = normalized.lower()
-    for host, container in PATH_MAP:
-        if lowered.startswith(host):
-            return Path(container) / normalized[len(host) :].lstrip("/")
-    return Path(normalized)
+def resolve_audio(p: str) -> Path:
+    """Normalise a path from the app. Same filesystem, so nothing to translate."""
+    return Path(p.replace("\\", "/"))
+
+
+def _watch_parent() -> None:
+    """
+    Exit when the app that started this process is gone.
+
+    `before-quit` covers the normal case, but an Electron crash or a kill -9
+    leaves this process holding several gigabytes of VRAM with nothing left to
+    talk to it. Polling the parent pid is crude and completely reliable.
+    """
+    raw = os.environ.get("GUITARLAB_PARENT_PID")
+    if not raw or not raw.isdigit():
+        return
+    parent = int(raw)
+    while True:
+        time.sleep(5)
+        try:
+            if os.name == "nt":
+                import ctypes
+
+                handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, parent)
+                if not handle:
+                    break
+                ctypes.windll.kernel32.CloseHandle(handle)
+            else:
+                os.kill(parent, 0)
+        except (OSError, ProcessLookupError):
+            break
+    os._exit(0)
+
+
+threading.Thread(target=_watch_parent, daemon=True).start()
+
+
+def _register_cuda_libraries() -> None:
+    """
+    Put the CUDA libraries that ship inside the torch wheels on the loader path.
+
+    faster-whisper runs on CTranslate2, which links cuDNN and cuBLAS directly
+    rather than through torch. Under the old container those libraries were part
+    of the base image and simply on the path. Installed as `nvidia-*-cu12`
+    wheels they land in `site-packages/nvidia/*/bin` instead, where nothing
+    looks for them — so the GPU transcription failed to load its own DLLs while
+    torch, which resolves them itself, worked fine two functions away.
+    """
+    import site
+
+    roots: list[Path] = []
+    for base in site.getsitepackages() + [site.getusersitepackages()]:
+        nvidia = Path(base) / "nvidia"
+        if nvidia.is_dir():
+            roots.append(nvidia)
+
+    subdir = "bin" if os.name == "nt" else "lib"
+    found: list[str] = []
+    for root in roots:
+        for lib in sorted(root.glob(f"*/{subdir}")):
+            found.append(str(lib))
+
+    if not found:
+        return
+    if os.name == "nt":
+        for path in found:
+            try:
+                os.add_dll_directory(path)
+            except OSError:
+                pass
+    else:
+        existing = os.environ.get("LD_LIBRARY_PATH", "")
+        os.environ["LD_LIBRARY_PATH"] = os.pathsep.join([*found, existing]).strip(os.pathsep)
+
+
+_register_cuda_libraries()
 
 
 # --------------------------------------------------------------------- jobs
@@ -124,6 +204,9 @@ def health() -> dict[str, Any]:
         "gpu": gpu,
         "models": models,
         "ffmpeg": shutil.which("ffmpeg") is not None,
+        "python": sys.version.split()[0],
+        "stems_dir": str(STEM_DIR),
+        "models_dir": str(MODELS_DIR),
     }
 
 
@@ -157,17 +240,23 @@ STEM_NAMES = ["vocals", "drums", "bass", "guitar", "piano", "other"]
 
 @app.post("/stems")
 def stems(req: StemsRequest) -> dict[str, str]:
-    audio = to_container_path(req.audio_path)
+    audio = resolve_audio(req.audio_path)
     if not audio.exists():
-        raise HTTPException(400, f"arquivo não encontrado no container: {audio}")
+        raise HTTPException(400, f"arquivo não encontrado: {audio}")
 
     def work(job: Job) -> dict[str, Any]:
-        out_root = STEM_DIR / audio.stem
+        # `out_dir` used to be sent and ignored, which meant the app could not
+        # actually choose where stems landed. It is the caller's stems folder.
+        root = Path(req.out_dir) if req.out_dir else STEM_DIR
+        out_root = root / audio.stem
         out_root.mkdir(parents=True, exist_ok=True)
 
         cuda, _ = gpu_info()
         cmd = [
-            "python", "-m", "demucs.separate",
+            # Not the string "python": inside a venv there may be no `python` on
+            # PATH at all, and if there is one it is the wrong interpreter with
+            # none of these packages in it.
+            sys.executable, "-m", "demucs.separate",
             "-n", req.model,
             "--out", str(out_root),
             # FLAC keeps the stems lossless at roughly half the size of wav
@@ -231,7 +320,7 @@ class AudioRequest(BaseModel):
 
 @app.post("/rhythm")
 def rhythm(req: AudioRequest) -> dict[str, str]:
-    audio = to_container_path(req.audio_path)
+    audio = resolve_audio(req.audio_path)
     if not audio.exists():
         raise HTTPException(400, f"arquivo não encontrado: {audio}")
 
@@ -342,7 +431,7 @@ def _decode_chords(scores: "np.ndarray") -> list[int]:  # type: ignore[name-defi
 
 @app.post("/harmony")
 def harmony(req: AudioRequest) -> dict[str, str]:
-    audio = to_container_path(req.audio_path)
+    audio = resolve_audio(req.audio_path)
     if not audio.exists():
         raise HTTPException(400, f"arquivo não encontrado: {audio}")
 
@@ -443,7 +532,7 @@ def harmony(req: AudioRequest) -> dict[str, str]:
 
 @app.post("/transcribe")
 def transcribe(req: AudioRequest) -> dict[str, str]:
-    audio = to_container_path(req.audio_path)
+    audio = resolve_audio(req.audio_path)
     if not audio.exists():
         raise HTTPException(400, f"arquivo não encontrado: {audio}")
 
@@ -451,7 +540,7 @@ def transcribe(req: AudioRequest) -> dict[str, str]:
         from basic_pitch.inference import predict_and_save
         from basic_pitch import ICASSP_2022_MODEL_PATH
 
-        out = STEM_DIR / audio.stem / "midi"
+        out = STEM_DIR / audio.stem / "midi"  # noqa: E501
         out.mkdir(parents=True, exist_ok=True)
         job.progress = 0.2
         predict_and_save(
@@ -484,7 +573,7 @@ def _fmt_lrc_time(seconds: float) -> str:
 
 @app.post("/lyrics")
 def lyrics(req: LyricsRequest) -> dict[str, str]:
-    audio = to_container_path(req.audio_path)
+    audio = resolve_audio(req.audio_path)
     if not audio.exists():
         raise HTTPException(400, f"arquivo não encontrado: {audio}")
 
@@ -518,3 +607,58 @@ def lyrics(req: LyricsRequest) -> dict[str, str]:
         }
 
     return {"job_id": new_job("lyrics", work).id}
+
+
+# ------------------------------------------------------------------- models
+
+
+def _fetched_marker(family: str, name: str) -> Path:
+    return FETCHED_DIR / f"{family}-{name}"
+
+
+@app.get("/models")
+def models_installed() -> dict[str, Any]:
+    """Which weights are already on disk, so the UI can hide the download."""
+    return {
+        "installed": sorted(p.name for p in FETCHED_DIR.glob("*") if p.is_file()),
+        "dir": str(MODELS_DIR),
+    }
+
+
+class ModelRequest(BaseModel):
+    family: str
+    name: str
+
+
+@app.post("/models/fetch")
+def fetch_model(req: ModelRequest) -> dict[str, str]:
+    """
+    Pull one model ahead of time.
+
+    There is no download API in either library — the weights arrive as a side
+    effect of constructing the model — so that is exactly what this does. The
+    point is not speed, it is that a first-time user can spend the 320 MB
+    deliberately, watching a progress bar, instead of discovering it when their
+    first separation appears to hang for ten minutes.
+    """
+    if req.family not in ("demucs", "whisper"):
+        raise HTTPException(400, f"família desconhecida: {req.family}")
+
+    def work(job: Job) -> dict[str, Any]:
+        job.progress = 0.1
+        if req.family == "demucs":
+            from demucs.pretrained import get_model
+
+            get_model(req.name)
+        else:
+            from faster_whisper import WhisperModel
+
+            # CPU here regardless of the GPU: this only has to touch the files
+            # to make the library download them.
+            WhisperModel(req.name, device="cpu", compute_type="int8")
+
+        job.progress = 0.95
+        _fetched_marker(req.family, req.name).touch()
+        return {"family": req.family, "name": req.name}
+
+    return {"job_id": new_job("models", work).id}

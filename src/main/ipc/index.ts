@@ -34,6 +34,9 @@ import * as youtube from '../services/youtube'
 import { playerUrl, startPlayerServer } from '../services/ytplayer'
 import * as spotify from '../services/spotify'
 import * as lab from '../services/lab'
+import * as labsetup from '../services/labsetup'
+import { installFfmpeg, managedFfmpeg, removeFfmpeg } from '../services/ffmpegsetup'
+import { checkForUpdate, downloadUpdate, installUpdate } from '../services/updater'
 import * as sources from '../services/sources'
 import { openTabBrowser, setDownloadListener } from '../services/tabdownload'
 import * as lrclib from '../services/lrclib'
@@ -540,6 +543,68 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle('lab:refresh', (jobId: number) => lab.refreshJob(jobId))
   handle('lab:refreshAll', () => lab.refreshAllRunning())
 
+  /* ----------------------------------------------------------- lab setup */
+
+  /*
+   * Installing the lab is the one long-running thing in the app that a user
+   * with no terminal has to be able to watch and stop. Progress is pushed as an
+   * event rather than polled, because the install is minutes long and the
+   * renderer asking every second for twenty minutes is worse in every way.
+   */
+
+  handle('lab:setup:status', () => labsetup.labSetupStatus())
+
+  handle('lab:setup:install', async (raw: unknown) => {
+    const pack = asEnum(raw, 'pack', ['cpu', 'cuda'] as const)
+    const win = getWindow()
+    await labsetup.installLab(pack, (progress) => {
+      if (win && !win.isDestroyed()) win.webContents.send('lab:setup:progress', progress)
+    })
+    // The lab is only useful once it is answering, so starting it is part of
+    // installing it rather than a second button the user has to find.
+    await labsetup.startSidecar()
+    return { ok: true }
+  })
+
+  handle('lab:setup:cancel', () => {
+    labsetup.cancelInstall()
+    return { ok: true }
+  })
+  handle('lab:setup:remove', () => labsetup.removeLab())
+  handle('lab:setup:removeModels', () => labsetup.removeModels())
+
+  handle('lab:process:start', () => labsetup.startSidecar())
+  handle('lab:process:stop', () => labsetup.stopSidecar())
+
+  handle('lab:models:fetch', (family: unknown, id: unknown) =>
+    labsetup.fetchModel(
+      asEnum(family, 'família', ['demucs', 'whisper'] as const),
+      asString(id, 'modelo')
+    )
+  )
+  handle('lab:models:job', (jobId: unknown) => labsetup.modelJob(asString(jobId, 'job')))
+
+  /* ------------------------------------------------------------- ffmpeg */
+
+  handle('media:ffmpeg:install', async () => {
+    const win = getWindow()
+    const path = await installFfmpeg((progress) => {
+      if (win && !win.isDestroyed()) win.webContents.send('media:tool:progress', progress)
+    })
+    return { path }
+  })
+  handle('media:ffmpeg:remove', () => removeFfmpeg())
+  handle('media:ffmpeg:managed', () => ({ path: managedFfmpeg() }))
+
+  /* ------------------------------------------------------------ updates */
+
+  handle('update:check', () => checkForUpdate())
+  handle('update:download', () => downloadUpdate())
+  handle('update:install', () => {
+    installUpdate()
+    return { ok: true }
+  })
+
   /* ----------------------------------------------------------------- llm */
 
   handle('llm:status', () => llmStatus())
@@ -820,7 +885,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       },
       llm,
       lab: {
-        url: config.lab.url,
+        url: lab.labUrl(),
         reachable: labState.reachable,
         gpu: labState.gpu,
         detail: labState.detail

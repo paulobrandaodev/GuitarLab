@@ -605,3 +605,58 @@ export interface SettingsSnapshot {
   encryption: { available: boolean; hint: string }
   locale: string
 }
+
+/* ------------------------------------------------------ laboratório: setup */
+
+/**
+ * Which build of PyTorch the lab runs on.
+ *
+ * The choice is made after installing, not at build time, because it is the
+ * difference between a 400 MB download and a 2.7 GB one and only the user's
+ * own machine knows which one is useful.
+ */
+export type LabPack = 'cpu' | 'cuda'
+
+export interface LabModelInfo {
+  id: string
+  family: 'demucs' | 'whisper'
+  approxBytes: number
+}
+
+export interface LabSetupStatus {
+  installed: boolean
+  /** A newer pinned uv/python/torch means the runtime should be rebuilt. */
+  stale: boolean
+  pack: LabPack | null
+  /** An install is running right now. */
+  busy: boolean
+  running: boolean
+  port: number | null
+  gpu: { name: string; driver: string } | null
+  recommendedPack: LabPack
+  runtimeDir: string
+  modelsDir: string
+  runtimeBytes: number
+  modelBytes: number
+  models: LabModelInfo[]
+  /** Markers of the form `demucs-htdemucs_6s`. */
+  installedModels: string[]
+}
+
+export interface LabSetupProgress {
+  phase: 'uv' | 'python' | 'venv' | 'torch' | 'demucs' | 'base' | 'done' | 'error'
+  /** 0..1 across the whole install. */
+  progress: number
+  /** The last line the installer printed, for when someone wants detail. */
+  detail: string
+  error?: string
+}
+
+/** Progress of a tool download that is not the lab — today only FFmpeg. */
+export interface ToolProgress {
+  tool: 'ffmpeg'
+  status: 'downloading' | 'extracting' | 'done' | 'error'
+  receivedBytes: number
+  totalBytes: number | null
+  message?: string
+}

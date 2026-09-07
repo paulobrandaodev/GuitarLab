@@ -22,10 +22,6 @@
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "postinstall": "electron-builder install-app-deps",
-    "lab:up": "docker compose up -d",
-    "lab:up:gpu": "docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d",
-    "lab:down": "docker compose down",
-    "lab:logs": "docker compose logs -f forge-lab",
     "pack": "electron-vite build && electron-builder --dir",
     "shots": "node scripts/screenshots.mjs",
     "dist": "electron-vite build && electron-builder",
@@ -35,8 +31,8 @@
     "test:stretch": "electron scripts/test-stretch.mjs",
     "test:player": "electron scripts/test-player.mjs",
     "test:newsong": "electron scripts/test-newsong.mjs",
-    "test:ci": "npm run typecheck && npm run test:i18n && npm run test:settings && npm run test:manual && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:ytplayer && npm run build && npm run test:secrets && npm run test:stretch && npm run test:newsong",
-    "test": "npm run typecheck && npm run test:i18n && npm run test:settings && npm run test:stems && npm run test:setlist && npm run test:manual && npm run test:sources && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:chordmap && npm run test:stream && npm run test:ytplayer && npm run test:tabscroll && npm run test:media && npm run build && npm run test:secrets && npm run test:stretch && npm run test:player && npm run test:newsong && npm run test:llm",
+    "test:ci": "npm run typecheck && npm run test:i18n && npm run test:settings && npm run test:labsetup && npm run test:manual && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:ytplayer && npm run build && npm run test:secrets && npm run test:stretch && npm run test:newsong",
+    "test": "npm run typecheck && npm run test:i18n && npm run test:settings && npm run test:labsetup && npm run test:stems && npm run test:setlist && npm run test:manual && npm run test:sources && npm run test:chords && npm run test:tempo && npm run test:cifra && npm run test:sort && npm run test:tone && npm run test:markdown && npm run test:chordmap && npm run test:stream && npm run test:ytplayer && npm run test:tabscroll && npm run test:media && npm run build && npm run test:secrets && npm run test:stretch && npm run test:player && npm run test:newsong && npm run test:llm",
     "test:ytplayer": "tsx --tsconfig tsconfig.node.json scripts/test-ytplayer.ts",
     "test:i18n": "tsx --tsconfig tsconfig.node.json scripts/test-i18n.ts",
     "test:settings": "tsx --tsconfig tsconfig.node.json scripts/test-settings.ts",
@@ -52,7 +48,8 @@
     "test:tone": "tsx --tsconfig tsconfig.node.json scripts/test-tone.ts",
     "test:markdown": "tsx --tsconfig tsconfig.web.json scripts/test-markdown.tsx",
     "test:manual": "tsx --tsconfig tsconfig.web.json scripts/test-manual.tsx",
-    "test:chordmap": "esbuild scripts/verify-chords.ts --bundle --platform=node --format=esm --target=node22 --outfile=out/verify-chords/index.js --external:electron --external:better-sqlite3 --alias:@shared=./src/shared && electron out/verify-chords"
+    "test:chordmap": "esbuild scripts/verify-chords.ts --bundle --platform=node --format=esm --target=node22 --outfile=out/verify-chords/index.js --external:electron --external:better-sqlite3 --alias:@shared=./src/shared && electron out/verify-chords",
+    "test:labsetup": "tsx --tsconfig tsconfig.node.json scripts/test-labsetup.ts"
   },
   "build": {
     "appId": "com.paulobrandao.guitarlab",
@@ -98,8 +95,18 @@
     },
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64"] },
-        { "target": "deb", "arch": ["x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "category": "AudioVideo",
       "synopsis": "Guitar practice: setlists, tabs, stems, chord charts and tones",
@@ -108,13 +115,26 @@
     "publish": {
       "provider": "github",
       "owner": "paulobrandaodev",
-      "repo": "GuitarLab"
-    }
+      "repo": "GuitarLab",
+      "releaseType": "draft"
+    },
+    "extraResources": [
+      {
+        "from": "lab",
+        "to": "lab",
+        "filter": [
+          "app/**/*",
+          "requirements/**/*",
+          "!**/__pycache__/**"
+        ]
+      }
+    ]
   },
   "dependencies": {
     "@coderline/alphatab": "^1.8.4",
     "better-sqlite3": "^13.0.3",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.2",
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "@coderline/alphatab-vite": "^1.8.4",

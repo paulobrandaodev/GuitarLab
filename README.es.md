@@ -39,9 +39,13 @@ Descarga un instalador desde
 | Windows | `GuitarLab-<versión>-instalador.exe`, o la versión portátil |
 | Linux | `.AppImage` (no instala nada) o `.deb` |
 
-**Un único requisito obligatorio: [FFmpeg](https://ffmpeg.org/download.html)**
-instalado y en el `PATH`. Sin él, importar audio falla — la aplicación te avisa
-en el primer arranque. Todo lo demás es opcional.
+**Nada más que instalar.** La aplicación necesita [FFmpeg](https://ffmpeg.org/)
+y, si todavía no está en tu `PATH`, hay un botón en Ajustes que lo descarga e
+instala por ti. El laboratorio de audio — separación de pistas y análisis — se
+instala también desde dentro de la aplicación, así que no hay Python ni Docker
+que configurar.
+
+Todo excepto el laboratorio funciona en cuanto termina el instalador.
 
 **Las compilaciones de Windows no están firmadas.** SmartScreen dirá "editor
 desconocido": pulsa *Más información* → *Ejecutar de todas formas*. Un
@@ -184,24 +188,33 @@ a mano. La interfaz que se ve está en portugués, por lo explicado justo arriba
 
 ## El laboratorio de audio (opcional)
 
-La separación de pistas y el análisis automático de BPM, tonalidad y acordes
-corren en un contenedor. **La aplicación funciona entera sin él** — es la única
-parte que necesita Docker.
+Separación de pistas, BPM y rejilla de pulsos, tonalidad y acordes, audio→MIDI
+y transcripción de la letra. **La aplicación funciona entera sin él** — está
+apagado hasta que lo instalas, y cada pantalla que lo usa lo dice en vez de
+romperse.
 
-```bash
-npm run lab:up       # CPU, funciona en cualquier máquina
-npm run lab:up:gpu   # NVIDIA, requiere el NVIDIA Container Toolkit
-npm run lab:logs
-npm run lab:down
-```
+Se instala desde dentro de la aplicación: abre la pestaña **Laboratorio** y
+elige un paquete.
 
-Aviso: la imagen base es enorme (la final ronda los 12–15 GB), más los pesos de
-los modelos que se descargan en el primer uso. Merece la pena si quieres separar
-pistas; si no, sáltatelo.
+| Paquete | Descarga | En disco | Para |
+|---|---|---|---|
+| Procesador (CPU) | ~400 MB | ~1,1 GB | cualquier máquina |
+| NVIDIA (CUDA) | ~2,7 GB | ~7 GB | tarjeta NVIDIA, driver 525+ |
 
-Si tus carpetas de medios no están en el repositorio, copia
-[.env.compose.example](.env.compose.example) a `.env` junto a
-`docker-compose.yml` y apúntalo a las mismas carpetas que elegiste en Ajustes.
+La aplicación descarga [uv](https://github.com/astral-sh/uv), le pide un CPython
+3.10 propio, monta un entorno virtual e instala allí PyTorch, Demucs, librosa,
+basic-pitch y faster-whisper. Nada de eso va en el instalador, y por eso el
+instalador ocupa ~116 MB y no varios gigabytes. Los pesos de los modelos son
+otra descarga aparte, con su tamaño a la vista y un botón por línea.
+
+**El paquete CUDA solo necesita el driver de NVIDIA.** Sin CUDA Toolkit, sin
+Container Toolkit, sin Docker — el runtime de CUDA viaja dentro de los paquetes
+`nvidia-*-cu12` que arrastra PyTorch. Esa es la razón práctica de que el
+contenedor haya desaparecido: la GPU pasó de exigir "instala Docker Desktop y un
+runtime de contenedores" a exigir "ya tienes el driver".
+
+Todo queda en la carpeta de datos de la aplicación, y **Quitar el laboratorio**
+lo deshace.
 
 ---
 

@@ -174,7 +174,7 @@ export const en: Catalog = {
 
     ffmpegMissing: 'not found on PATH',
     ffmpegHint:
-      'The one hard requirement: reads tags, measures loudness and draws the waveform. No Docker needed.',
+      'The one outside requirement: reads tags, measures loudness and draws the waveform. The app can fetch it for you.',
     spotifyHint:
       'Login opens in your browser (PKCE, no password in the app). Used for metadata and for driving an already-running Spotify over Connect.',
     youtubeQuota: (used: number, limit: number) =>
@@ -183,7 +183,7 @@ export const en: Catalog = {
       'The primary provider is tried first; if it fails, the app falls through to the fallbacks in order.',
     labGpu: (gpu: string) => `GPU: ${gpu}`,
     labGpuUnknown: 'not reported',
-    labOffline: 'Start it with "npm run lab:up". Only needed for stems and automatic analysis.',
+    labOffline: 'Install and start it in the Lab tab. Only needed for stems and automatic analysis.',
 
     fields: {
       spotifyClientId: 'Client ID',
@@ -294,6 +294,128 @@ export const en: Catalog = {
     duplicateAnyway: 'Create it anyway'
   },
 
+  lab: {
+    title: 'Audio Lab',
+    subtitle: 'Stem separation and analysis, running on your own machine',
+    on: 'Lab running',
+    off: 'Lab stopped',
+    jobs: {
+      stems: 'Separate stems',
+      rhythm: 'BPM and beat grid',
+      harmony: 'Key and chords',
+      transcribe: 'Audio → MIDI',
+      lyrics: 'Transcribe lyrics'
+    },
+    jobDesc: {
+      stems: 'Demucs splits the track into vocals, drums, bass, guitar, piano and other. Gives you the guitar-only and the backing track.',
+      rhythm: 'Finds tempo, beats and bars so the A/B loop can snap to the grid.',
+      harmony: 'Finds the key and the chord progression over time.',
+      transcribe: 'basic-pitch turns the audio into MIDI — a first draft of a tab.',
+      lyrics: 'faster-whisper transcribes the lyrics with timestamps.'
+    },
+    run: 'Run',
+    rerun: 'Run again',
+    sent: (job: string) => `${job} sent to the lab`,
+    sendFailed: 'Could not submit the job',
+    jobStatus: {
+      queued: 'queued',
+      running: 'running',
+      done: 'done',
+      error: 'error',
+      canceled: 'canceled'
+    },
+    stemsMade: (count: number) => `Stems produced (${count})`,
+    openFolder: 'open folder',
+    history: 'Job history',
+    chooseSong: 'song',
+    chooseSongPlaceholder: '— pick a song —',
+    noSongs: 'No song has local audio',
+    noSongsDesc: 'The lab needs the audio file. Put mp3/wav/flac in your songs folder and import.',
+    songNoAudio: 'This song has no local audio yet',
+    songNoAudioDesc:
+      'The lab listens to the recording. Grab the track with the WAV button in the setlist, or put the file in your audio folder and import.',
+    goToSetlist: 'Go to the setlist',
+    demucsModel: {
+      six: '6 stems (guitar included)',
+      four: '4 stems (best quality)',
+      fourFt: '4 stems fine-tuned (slower)'
+    },
+    setup: {
+      title: 'Install the lab',
+      intro:
+        'The lab runs the heavy models on your machine. It is not in the installer, so the installer stays small — pick below and the app downloads and sets it all up.',
+      gpuFound: (name: string, driver: string) => `${name} · driver ${driver}`,
+      gpuNone: 'No NVIDIA card found — the CPU pack is the right one here',
+      recommended: 'recommended',
+      packCpu: 'Processor (CPU)',
+      packCpuDesc: 'Works anywhere. Separating a song takes minutes rather than seconds.',
+      packCuda: 'NVIDIA card (CUDA)',
+      packCudaDesc:
+        'Much faster. Needs only the NVIDIA driver — no CUDA Toolkit, no Docker.',
+      install: (size: string) => `Install · ${size}`,
+      installing: 'Installing',
+      cancel: 'Cancel install',
+      canceled: 'Install canceled',
+      timeWarning:
+        'Anywhere from a few minutes to half an hour, depending on your connection. You can leave this tab — the download carries on.',
+      phase: {
+        uv: 'preparing the installer',
+        python: 'downloading Python',
+        venv: 'creating the environment',
+        torch: 'downloading PyTorch',
+        demucs: 'installing Demucs',
+        base: 'installing the rest',
+        done: 'done',
+        error: 'failed'
+      },
+      ready: 'Lab installed',
+      packInUse: (pack: string) => `${pack} pack`,
+      start: 'Start',
+      stop: 'Stop',
+      starting: 'Starting',
+      remove: 'Remove the lab',
+      removeConfirm:
+        "This deletes the lab's Python environment. Downloaded models are kept. Continue?",
+      removeModels: 'Delete the models',
+      removeModelsConfirm:
+        'This deletes the downloaded models. They will be fetched again when needed. Continue?',
+      stale: 'This install is from an earlier version',
+      staleDesc: 'Reinstall to match the versions this build of the app expects.',
+      diskRuntime: 'environment',
+      diskModels: 'models',
+      models: 'Models',
+      modelsDesc:
+        'Downloaded the first time you use each one. Get them ahead of time so no job stalls waiting.',
+      download: 'Download',
+      downloading: 'Downloading',
+      downloaded: 'downloaded',
+      folders: 'Folders'
+    }
+  },
+  tools: {
+    ffmpeg: {
+      title: 'FFmpeg',
+      missing: 'FFmpeg was not found',
+      missingDesc:
+        'The app uses FFmpeg to read, convert and measure the loudness of audio. Importing music does not work without it.',
+      install: 'Download and install',
+      installing: 'Downloading FFmpeg',
+      extracting: 'Installing',
+      installed: (path: string) => `Installed by the app at ${path}`,
+      remove: 'Remove',
+      onPath: 'Found on the system'
+    }
+  },
+  update: {
+    available: (version: string) => `Version ${version} available`,
+    download: 'Download',
+    downloading: 'Downloading the update',
+    ready: (version: string) => `Version ${version} ready to install`,
+    restart: 'Restart and update',
+    later: 'Later',
+    upToDate: 'You are on the latest version',
+    check: 'Check for updates'
+  },
   errors: {
     songNotFound: 'Song not found',
     titleRequired: 'The song needs a title',
@@ -306,7 +428,7 @@ export const en: Catalog = {
     emptyQueue: 'Nothing queued — import songs and mark your progress.',
     aiNoJson: 'The AI did not return a readable JSON patch — try again.',
     aiNoBlocks: 'The AI answered, but with no usable blocks — try again.',
-    labUnreachable: (detail: string) => `Lab unavailable: ${detail}. Run "npm run lab:up".`,
+    labUnreachable: (detail: string) => `Lab unavailable: ${detail}. Open the Lab tab to start it.`,
     labRefused: (detail: string) => `The lab refused the job: ${detail}`,
     spotifyNotConnected: 'Spotify is not connected',
     spotifyNotConfigured: 'The Spotify Client ID is not set — add it in Settings',

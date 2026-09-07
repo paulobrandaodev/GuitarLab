@@ -178,7 +178,7 @@ export function ChordMap({
             error ??
             (audio
               ? 'O laboratório escuta o áudio e escreve os acordes na linha do tempo — batida ' +
-                'por batida, como o Chordify. Precisa do container ligado (npm run lab:up).'
+                'por batida, como o Chordify. Precisa do laboratório ligado.'
               : 'Essa música ainda não tem áudio local. Baixe a faixa pelo botão WAV no setlist ' +
                 'ou coloque o arquivo em songs/ e importe — a detecção escuta a gravação.')
           }
