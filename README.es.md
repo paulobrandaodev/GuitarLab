@@ -19,6 +19,12 @@ Electron + React + TypeScript + SQLite. Interfaz oscura, estilo neumórfico.
 [![Sponsor](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/paulobrandaodev)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/paulobrandaodev)
 
+<br>
+
+<img src="docs/screenshots/04-tablatura.png" alt="GuitarLab: tablatura de Guitar Pro con el transporte, la lista de secciones y mute/solo por pista" width="900">
+
+<sub>Más pantallas abajo — <a href="#pantallas">Pantallas</a></sub>
+
 </div>
 
 ---
@@ -117,16 +123,62 @@ comparación difusa.
 
 ## Pantallas
 
-| Pantalla | Qué hace |
-|---|---|
-| **Setlist** | Anillo de preparación para el concierto, dominio por canción, aviso cuando dos temas seguidos piden afinaciones distintas, ordenación por banda, título, afinación (Mi estándar siempre arriba) y duración, más atajos **GP** y **WAV** por fila |
-| **Estudio — Guitar Pro** | Partitura y tablatura (alphaTab), transporte con bucle A/B por sección, control de velocidad, metrónomo, cuenta atrás, mute/solo por pista, entrenador de velocidad |
-| **Estudio — Pistas** | Acorde actual junto al anterior y los dos siguientes, velocidad del 50 al 100 % sin tocar el tono, transposición por semitonos sin tocar la velocidad, bucle A–B arrastrado sobre la onda y ajustado al pulso, metrónomo enganchado al audio, mute/solo y volumen por pista |
-| **Canción** | Progreso por sección, vídeos, cifrado y letra, **cifrado automático** sincronizado con el audio, **cifrado generado** a partir de acordes y letra, **patches de sonido** por sección, datos |
-| **Laboratorio** | Separación de pistas (Demucs), BPM y pulsos, tonalidad y pista de acordes, audio→MIDI, transcripción de letra |
-| **Progreso** | Cola del día (repetición espaciada), mapa de constancia, curva de BPM, plan de estudio generado por IA |
-| **Afinador** | Micrófono y detección de tono, preajuste tomado del archivo GP |
-| **Modo escenario** | Pantalla completa, letra y acordes grandes, avance por teclado o pedal (flechas / AvPág / RePág) |
+Esto es la aplicación funcionando sobre una biblioteca real — un setlist real,
+tablaturas reales, pistas reales, historial de estudio real. Aquí no hay ningún
+mockup: las capturas las toma [`scripts/screenshots.mjs`](scripts/screenshots.mjs),
+que arranca la aplicación y la maneja, así que se regeneran en lugar de rehacerse
+a mano. La interfaz que se ve está en portugués, por lo explicado justo arriba.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/01-setlist.png" alt="Setlist"></td>
+<td width="50%"><img src="docs/screenshots/02-setlist-musica.png" alt="Una canción abierta en su propia fila del setlist"></td>
+</tr>
+<tr>
+<td><b>Setlist</b> — anillo de preparación para el concierto, dominio por canción y aviso cuando dos temas seguidos piden afinaciones distintas. Ordenación por banda, título, afinación (Mi estándar siempre arriba) y duración.</td>
+<td><b>Cada fila se abre donde está</b> — último estudio, afinación, tonalidad y tempo, más los atajos <b>GP</b> y <b>WAV</b> que buscan la tablatura y descargan la pista.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/03-musica.png" alt="Progreso por sección"></td>
+<td><img src="docs/screenshots/04-tablatura.png" alt="Tablatura de Guitar Pro con el reproductor"></td>
+</tr>
+<tr>
+<td><b>Canción</b> — el progreso se lleva por sección, no por canción. Veintisiete aquí, cada una avanzando de <i>sin empezar</i> a <i>lista para el concierto</i> por su cuenta, con su propio BPM objetivo.</td>
+<td><b>Estudio — Guitar Pro</b> — partitura y tablatura (alphaTab), transporte con bucle A/B por sección, control de velocidad, metrónomo, cuenta atrás, mute/solo por pista, entrenador de velocidad.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/05-stems.png" alt="Reproductor multipista de pistas separadas"></td>
+<td><img src="docs/screenshots/06-cifra.png" alt="Cifrado detectado del audio"></td>
+</tr>
+<tr>
+<td><b>Estudio — Pistas</b> — velocidad del 50 al 100 % sin tocar el tono, transposición por semitonos sin tocar la velocidad, bucle A–B arrastrado sobre la onda y ajustado al pulso, metrónomo enganchado al audio, mute/solo y volumen por pista.</td>
+<td><b>Acordes</b> — el cifrado detectado directamente del audio y sincronizado con él, con el acorde actual junto al anterior y los dos siguientes. La barra bajo cada bloque es la confianza: en rojo significa pasaje ambiguo, que conviene comprobar de oído.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/07-videos.png" alt="Vídeos de YouTube clasificados por función"></td>
+<td><img src="docs/screenshots/08-timbre.png" alt="Patches de sonido para tu propio equipo"></td>
+</tr>
+<tr>
+<td><b>Vídeos</b> — una búsqueda por canción, 25 resultados clasificados localmente en Lesson w/ Tabs, Backing Track y Guitar Only, y guardados para siempre. Pegar una URL a mano no gasta cuota alguna.</td>
+<td><b>Sonido</b> — patches escritos para el equipo que de verdad tienes y para las secciones que de verdad tocas, con la cadena de señal y cada mando que el patch espera que ajustes.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/09-laboratorio.png" alt="Laboratorio de audio"></td>
+<td><img src="docs/screenshots/10-progresso.png" alt="Progreso, constancia y BPM"></td>
+</tr>
+<tr>
+<td><b>Laboratorio</b> — separación de pistas (Demucs), BPM y pulsos, tonalidad y pista de acordes, audio→MIDI, transcripción de letra. Totalmente opcional: en esta captura el contenedor está apagado, y la aplicación lo dice en vez de romperse.</td>
+<td><b>Progreso</b> — cola del día (repetición espaciada), mapa de constancia, curva de BPM, plan de estudio generado por IA.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/11-afinador.png" alt="Afinador"></td>
+<td><img src="docs/screenshots/12-palco.png" alt="Modo escenario"></td>
+</tr>
+<tr>
+<td><b>Afinador</b> — micrófono y detección de tono, con el preajuste tomado del archivo GP.</td>
+<td><b>Modo escenario</b> — pantalla completa, letra y acordes grandes, avance por teclado o pedal (flechas / AvPág / RePág).</td>
+</tr>
+</table>
 
 ---
 

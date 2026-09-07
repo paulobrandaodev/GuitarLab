@@ -18,6 +18,12 @@ Electron + React + TypeScript + SQLite. Visual dark neumorphism.
 [![Sponsor](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/paulobrandaodev)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/paulobrandaodev)
 
+<br>
+
+<img src="docs/screenshots/04-tablatura.png" alt="GuitarLab: tablatura Guitar Pro com o transporte, a lista de trechos e mute/solo por trilha" width="900">
+
+<sub>Mais telas abaixo — <a href="#telas">Telas</a></sub>
+
 </div>
 
 ---
@@ -102,16 +108,61 @@ O casamento entre tablatura e áudio é **por metadado** (ID3 no MP3, RIFF INFO 
 
 ## Telas
 
-| Tela | O que faz |
-|---|---|
-| **Setlist** | Anel de prontidão do show, músicas com domínio individual, aviso de troca de afinação entre faixas seguidas, **ordenação** por banda, música, afinação (E padrão sempre no topo) e duração, atalhos **GP** e **WAV** por linha para buscar a tablatura e baixar a faixa |
-| **Estudar — Guitar Pro** | Partitura + tablatura (alphaTab), transporte com loop A/B por trecho, slider de velocidade, metrônomo, contagem, mute/solo por trilha, treinador de velocidade |
-| **Estudar — Stems** | Acorde atual em degradê com o anterior e os dois seguintes, velocidade de 50% a 100% sem mexer no tom, transposição por semitom sem mexer na velocidade, loop A–B arrastado na forma de onda com encaixe na batida, metrônomo trancado no áudio, mute/solo e volume por faixa |
-| **Música** | Progresso por trecho, vídeos, cifra/letra, **cifra automática** sincronizada com o áudio, **cifra gerada** dos acordes + letra sincronizada, **patches de timbre** por trecho, dados |
-| **Laboratório** | Separação de stems (Demucs), BPM/batidas, tom + trilha de acordes, áudio→MIDI, transcrição de letra |
-| **Progresso** | Fila do dia (SRS), heatmap de constância, curva de BPM, plano de treino gerado por IA |
-| **Afinador** | Microfone + detecção de pitch, preset vindo do arquivo GP |
-| **Modo Palco** | Tela cheia, letra/cifra grande, avanço por teclado ou pedal (setas / PageUp / PageDown) |
+Isto é o app rodando numa biblioteca de verdade — setlist real, tablaturas
+reais, stems reais, histórico de treino real. Nada aqui é mockup: as imagens são
+tiradas pelo [`scripts/screenshots.mjs`](scripts/screenshots.mjs), que sobe o app
+e o dirige, então elas são regeradas em vez de refeitas na mão.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/01-setlist.png" alt="Setlist"></td>
+<td width="50%"><img src="docs/screenshots/02-setlist-musica.png" alt="Uma música aberta na própria linha do setlist"></td>
+</tr>
+<tr>
+<td><b>Setlist</b> — anel de prontidão do show, domínio por música e aviso quando duas faixas seguidas pedem afinações diferentes. Ordenação por banda, música, afinação (E padrão sempre no topo) e duração.</td>
+<td><b>Cada linha abre onde está</b> — último treino, afinação, tom e andamento, mais os atalhos <b>GP</b> e <b>WAV</b> que buscam a tablatura e baixam a faixa.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/03-musica.png" alt="Progresso por trecho"></td>
+<td><img src="docs/screenshots/04-tablatura.png" alt="Tablatura Guitar Pro com o player"></td>
+</tr>
+<tr>
+<td><b>Música</b> — progresso por trecho, não por música. Vinte e sete deles aqui, cada um andando de <i>não começou</i> até <i>pronto pro show</i> por conta própria, com BPM alvo individual.</td>
+<td><b>Estudar — Guitar Pro</b> — partitura e tablatura (alphaTab), transporte com loop A/B por trecho, slider de velocidade, metrônomo, contagem, mute/solo por trilha, treinador de velocidade.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/05-stems.png" alt="Player multipista de stems"></td>
+<td><img src="docs/screenshots/06-cifra.png" alt="Cifra detectada do áudio"></td>
+</tr>
+<tr>
+<td><b>Estudar — Stems</b> — velocidade de 50% a 100% sem mexer no tom, transposição por semitom sem mexer na velocidade, loop A–B arrastado na forma de onda com encaixe na batida, metrônomo trancado no áudio, mute/solo e volume por faixa.</td>
+<td><b>Cifra</b> — a cifra detectada direto do áudio e sincronizada com ele, com o acorde atual ao lado do anterior e dos dois seguintes. A barrinha embaixo de cada bloco é a confiança: vermelha quer dizer trecho ambíguo, que vale conferir de ouvido.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/07-videos.png" alt="Vídeos do YouTube classificados por papel"></td>
+<td><img src="docs/screenshots/08-timbre.png" alt="Patches de timbre para o seu equipamento"></td>
+</tr>
+<tr>
+<td><b>Vídeos</b> — uma busca por música, 25 resultados classificados localmente em Lesson w/ Tabs, Backing Track e Guitar Only, e guardados para sempre. Colar uma URL na mão não gasta cota nenhuma.</td>
+<td><b>Timbre</b> — patches escritos para o equipamento que você tem de verdade e para os trechos que você toca, com a cadeia de sinal e cada botão que o patch espera que você ajuste.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/09-laboratorio.png" alt="Laboratório de áudio"></td>
+<td><img src="docs/screenshots/10-progresso.png" alt="Progresso, constância e BPM"></td>
+</tr>
+<tr>
+<td><b>Laboratório</b> — separação de stems (Demucs), BPM e batidas, tom mais trilha de acordes, áudio→MIDI, transcrição de letra. Totalmente opcional: nesta imagem o container está desligado, e o app avisa em vez de quebrar.</td>
+<td><b>Progresso</b> — fila do dia (SRS), heatmap de constância, curva de BPM, plano de treino gerado por IA.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/11-afinador.png" alt="Afinador"></td>
+<td><img src="docs/screenshots/12-palco.png" alt="Modo Palco"></td>
+</tr>
+<tr>
+<td><b>Afinador</b> — microfone e detecção de pitch, com o preset vindo do arquivo GP.</td>
+<td><b>Modo Palco</b> — tela cheia, letra e cifra grandes, avanço por teclado ou pedal (setas / PageUp / PageDown).</td>
+</tr>
+</table>
 
 ---
 

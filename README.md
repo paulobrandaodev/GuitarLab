@@ -19,6 +19,12 @@ Electron + React + TypeScript + SQLite. Dark neumorphic interface.
 [![Sponsor](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/paulobrandaodev)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/paulobrandaodev)
 
+<br>
+
+<img src="docs/screenshots/04-tablatura.png" alt="GuitarLab: Guitar Pro tablature with the transport, the section list and per-track mute/solo" width="900">
+
+<sub>More screens below — <a href="#screens">Screens</a></sub>
+
 </div>
 
 ---
@@ -114,16 +120,62 @@ tags it falls back to a normalised filename with fuzzy comparison.
 
 ## Screens
 
-| Screen | What it does |
-|---|---|
-| **Setlist** | Show-readiness ring, per-song mastery, a warning when two consecutive songs need different tunings, sorting by band, title, tuning (standard E always pinned to the top) and duration, plus per-row **GP** and **WAV** shortcuts to find the tab and fetch the track |
-| **Practice — Guitar Pro** | Score and tablature (alphaTab), transport with an A/B loop per section, speed slider, metronome, count-in, per-track mute/solo, speed trainer |
-| **Practice — Stems** | Current chord shown against the previous one and the next two, 50–100% speed without touching pitch, semitone transposition without touching speed, an A–B loop dragged over the waveform and snapped to the beat, a metronome locked to the audio, per-track mute/solo and volume |
-| **Song** | Progress per section, videos, chords and lyrics, **automatic chord chart** synced to the audio, a **generated chart** from chords plus synced lyrics, **tone patches** per section, data |
-| **Lab** | Stem separation (Demucs), BPM and beats, key plus a chord track, audio→MIDI, lyric transcription |
-| **Progress** | Today's queue (spaced repetition), consistency heatmap, BPM curve, AI-generated practice plan |
-| **Tuner** | Microphone and pitch detection, preset taken from the GP file |
-| **Stage mode** | Full screen, large lyrics and chords, advance by keyboard or foot pedal (arrows / PageUp / PageDown) |
+This is the app running against a real library — a real setlist, real tabs, real
+stems, real practice history. Nothing here is a mockup: the shots are taken by
+[`scripts/screenshots.mjs`](scripts/screenshots.mjs), which boots the app and
+drives it, so they are regenerated rather than reshot by hand. The interface in
+them is Portuguese, for the reason just above.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/01-setlist.png" alt="Setlist"></td>
+<td width="50%"><img src="docs/screenshots/02-setlist-musica.png" alt="A song opened in place in the setlist"></td>
+</tr>
+<tr>
+<td><b>Setlist</b> — show-readiness ring, per-song mastery, and a warning when two consecutive songs need different tunings. Sorting by band, title, tuning (standard E always pinned to the top) and duration.</td>
+<td><b>Every row opens where it sits</b> — last practice, tuning, key and tempo, and the per-row <b>GP</b> and <b>WAV</b> shortcuts that find the tab and fetch the track.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/03-musica.png" alt="Progress per section"></td>
+<td><img src="docs/screenshots/04-tablatura.png" alt="Guitar Pro tablature with the player"></td>
+</tr>
+<tr>
+<td><b>Song</b> — progress tracked per section rather than per song. Twenty-seven of them here, each moving from <i>not started</i> to <i>ready for the show</i> on its own, with a target BPM apiece.</td>
+<td><b>Practice — Guitar Pro</b> — score and tablature (alphaTab), transport with an A/B loop per section, speed slider, metronome, count-in, per-track mute/solo, speed trainer.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/05-stems.png" alt="Multitrack stem player"></td>
+<td><img src="docs/screenshots/06-cifra.png" alt="Chord chart detected from the audio"></td>
+</tr>
+<tr>
+<td><b>Practice — Stems</b> — 50–100% speed without touching pitch, semitone transposition without touching speed, an A–B loop dragged over the waveform and snapped to the beat, a metronome locked to the audio, per-track mute/solo and volume.</td>
+<td><b>Chords</b> — the chart detected straight from the audio and synced to it, the current chord shown against the previous one and the next two. The bar under each block is confidence: red means the passage is ambiguous and worth checking by ear.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/07-videos.png" alt="YouTube references classified by role"></td>
+<td><img src="docs/screenshots/08-timbre.png" alt="Tone patches for your own gear"></td>
+</tr>
+<tr>
+<td><b>Videos</b> — one search per song, 25 results classified locally into Lesson w/ Tabs, Backing Track and Guitar Only, and cached permanently. Pasting a URL by hand costs no quota at all.</td>
+<td><b>Tone</b> — patches written for the gear you actually own and the sections you actually play, with the signal chain and every knob the patch expects you to set.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/09-laboratorio.png" alt="Audio lab"></td>
+<td><img src="docs/screenshots/10-progresso.png" alt="Progress, consistency and BPM"></td>
+</tr>
+<tr>
+<td><b>Lab</b> — stem separation (Demucs), BPM and beats, key plus a chord track, audio→MIDI, lyric transcription. Entirely optional: the container is switched off in this shot, and the app says so rather than breaking.</td>
+<td><b>Progress</b> — today's queue (spaced repetition), consistency heatmap, BPM curve, AI-generated practice plan.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/11-afinador.png" alt="Tuner"></td>
+<td><img src="docs/screenshots/12-palco.png" alt="Stage mode"></td>
+</tr>
+<tr>
+<td><b>Tuner</b> — microphone and pitch detection, with the preset taken from the GP file.</td>
+<td><b>Stage mode</b> — full screen, large lyrics and chords, advance by keyboard or foot pedal (arrows / PageUp / PageDown).</td>
+</tr>
+</table>
 
 ---
 

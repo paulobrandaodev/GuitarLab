@@ -27,6 +27,7 @@
     "lab:down": "docker compose down",
     "lab:logs": "docker compose logs -f forge-lab",
     "pack": "electron-vite build && electron-builder --dir",
+    "shots": "node scripts/screenshots.mjs",
     "dist": "electron-vite build && electron-builder",
     "test:llm": "tsx --tsconfig tsconfig.node.json scripts/test-llm.ts",
     "test:media": "electron scripts/test-media.mjs",
