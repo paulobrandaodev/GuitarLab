@@ -8,7 +8,14 @@
 
 @theme {
   --color-void: #0d0d10;
-  --color-base: #1c1c22;
+  /*
+   * Named `canvas` and not `base`: a `--color-*` token teaches Tailwind a
+   * `text-*` utility of the same name, and `text-base` is already the font
+   * size everyone reaches for. Under the old name, every `text-base` in the
+   * app painted its text the colour of the background — the modal titles were
+   * there, in the right place, in the background's own colour.
+   */
+  --color-canvas: #1c1c22;
   --color-raised: #212128;
   --color-sunken: #17171c;
   --color-edge: #2a2a33;
@@ -63,7 +70,7 @@ body,
 }
 
 body {
-  background: var(--color-base);
+  background: var(--color-canvas);
   color: var(--color-txt);
   font-family: var(--font-sans);
   font-size: 14px;
@@ -183,6 +190,20 @@ body {
 }
 .scroll-area::-webkit-scrollbar-thumb:hover {
   background: #3a3a45;
+}
+
+/*
+  Room for the focus ring inside a scrolling column.
+
+  A scroll box clips its content at the padding edge, and the ring is drawn
+  2px wide 2px outside the field it belongs to. A field flush with the wall of
+  the column therefore loses that side of its ring — it comes out sliced flat.
+  The column takes those 4px as padding and gives them straight back as
+  margin: nothing moves, and the ring has somewhere to land.
+*/
+.ring-room {
+  padding-inline: 4px;
+  margin-inline: -4px;
 }
 
 /* ------------------------------------------------------------------ misc */

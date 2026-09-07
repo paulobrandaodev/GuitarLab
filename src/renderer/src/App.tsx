@@ -223,7 +223,7 @@ export default function App(): ReactNode {
   }
 
   return (
-    <div className="bg-base flex h-full flex-col">
+    <div className="bg-canvas flex h-full flex-col">
       <TitleBar onBack={back} canBack={history.length > 0} />
       <main className={cx('min-h-0 flex-1', !booted && 'opacity-0')}>
         <Screen route={route} />

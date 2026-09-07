@@ -171,7 +171,7 @@ export function NewSetlistDialog({
 
   return (
     <Modal title={str.manual.newSetlist} onClose={onClose}>
-      <div className="scroll-area min-h-0 flex-1 space-y-3">
+      <div className="scroll-area ring-room min-h-0 flex-1 space-y-3">
         <NeuInput
           label={`${str.manual.setlistName} · ${str.manual.required}`}
           placeholder={str.manual.setlistNamePlaceholder}
@@ -347,7 +347,7 @@ export function NewSongDialog({
 
   return (
     <Modal title={str.manual.newSong} onClose={onClose} wide>
-      <div className="scroll-area min-h-0 flex-1 space-y-3">
+      <div className="scroll-area ring-room min-h-0 flex-1 space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <NeuInput
             label={`${str.manual.songTitle} · ${str.manual.required}`}
@@ -577,7 +577,7 @@ export function AddToSetlistDialog({
 
   return (
     <Modal title={`Adicionar "${song.title}"`} onClose={onClose}>
-      <div className="scroll-area min-h-0 flex-1 space-y-4">
+      <div className="scroll-area ring-room min-h-0 flex-1 space-y-4">
         {[...byBand.entries()].map(([band, lists]) => (
           <div key={band}>
             <div className="micro-label mb-1.5">{band}</div>
@@ -732,7 +732,7 @@ export function ImportPlaylistDialog({
                   onChange={(e) => setFilter(e.target.value)}
                 />
               </div>
-              <div className="scroll-area min-h-0 flex-1 space-y-1.5">
+              <div className="scroll-area ring-room min-h-0 flex-1 space-y-1.5">
                 {visible.map((p) => (
                   <button
                     key={p.id}

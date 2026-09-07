@@ -507,7 +507,7 @@ export function PracticeScreen({
               className="gradient-text flex w-full items-center gap-2 text-xs font-semibold disabled:opacity-50"
             >
               {insightLoading ? <Spinner size={14} /> : <IconSparkle width={15} height={15} />}
-              Como destravar este trecho
+              Dicas para esta música
             </button>
             {insight && (
               <div className="scroll-area mt-3 max-h-72">

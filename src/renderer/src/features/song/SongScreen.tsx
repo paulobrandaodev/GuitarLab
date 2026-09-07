@@ -26,8 +26,7 @@ import {
   IconTone,
   IconTuner,
   IconWave,
-  IconX,
-  INSTRUMENT_ICON
+  IconX
 } from '../../components/ui/icons'
 import { ToneTab } from './ToneTab'
 import { ChordMap } from './ChordMap'
@@ -859,12 +858,7 @@ function ProgressPanel({
 
   return (
     <NeuCard className="p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="micro-label">Progresso por trecho</div>
-        <Badge tone="accent">
-          <INSTRUMENT_ICON.guitar width={12} height={12} /> {str.labels.instrument.guitar}
-        </Badge>
-      </div>
+      <div className="micro-label mb-3">Progresso por trecho</div>
 
       <div className="space-y-1.5">
         {rows.map((row) => {

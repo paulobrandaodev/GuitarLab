@@ -429,7 +429,7 @@ export const AlphaTabView = forwardRef<AlphaTabHandle, Props>(function AlphaTabV
   return (
     <div className="relative h-full">
       {(loading || rendering) && (
-        <div className="bg-base/70 absolute inset-0 z-20 grid place-items-center backdrop-blur-sm">
+        <div className="bg-canvas/70 absolute inset-0 z-20 grid place-items-center backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3">
             <Spinner size={26} />
             <span className="micro-label">

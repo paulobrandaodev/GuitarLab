@@ -256,7 +256,7 @@ function AudioSources({
       )}
 
       {candidates && candidates.length > 0 && (
-        <div className="scroll-area min-h-0 flex-1 space-y-1.5">
+        <div className="scroll-area ring-room min-h-0 flex-1 space-y-1.5">
           {candidates.map((c) => (
             <div key={c.url} className="neu-inset rounded-[14px] p-2.5">
               <div className="flex items-center gap-3">
@@ -331,7 +331,7 @@ export function SourcesDialog({
 
   return (
     <Modal title={`Arquivos de "${song.title}"`} onClose={onClose} wide>
-      <div className="scroll-area min-h-0 flex-1 space-y-3">
+      <div className="scroll-area ring-room min-h-0 flex-1 space-y-3">
         <TabSources song={song} progress={progress} onChanged={onChanged} />
         <AudioSources song={song} progress={progress} onChanged={onChanged} />
       </div>
