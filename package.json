@@ -108,6 +108,7 @@
           ]
         }
       ],
+      "maintainer": "Paulo Brandao <paulobrandaoofficial@gmail.com>",
       "category": "AudioVideo",
       "synopsis": "Guitar practice: setlists, tabs, stems, chord charts and tones",
       "description": "Desktop app for consolidating a band setlist and practising guitar: Guitar Pro tablature, YouTube videos, chord sheets, chords detected from audio, tuning, GPU stem separation and per-section progress."
