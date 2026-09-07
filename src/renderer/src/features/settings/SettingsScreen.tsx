@@ -12,6 +12,7 @@ import { IconSpotify, IconYoutube, IconSparkle, IconLab, IconWave } from '../../
 import { api } from '../../lib/api'
 import { SettingField } from './SettingField'
 import { LOCALES, LOCALE_NAMES } from '@shared/i18n'
+import { useStrings } from '../../lib/i18n'
 import type { IntegrationStatus, SettingView, SettingsSnapshot } from '@shared/types'
 
 /** The folders the user is allowed to move; the database stays with the app. */
@@ -134,6 +135,7 @@ function Group({
 }
 
 export function SettingsScreen(): ReactNode {
+  const str = useStrings()
   const { toast, show, clear } = useToast()
   const [status, setStatus] = useState<IntegrationStatus | null>(null)
   const [snapshot, setSnapshot] = useState<SettingsSnapshot | null>(null)
@@ -462,6 +464,35 @@ export function SettingsScreen(): ReactNode {
         <p className="text-txt-micro mt-2 text-[11px] leading-snug">
           Automático segue o idioma do sistema operacional.
         </p>
+      </NeuCard>
+
+      <NeuCard className="mb-5 p-4">
+        <div className="micro-label mb-2">{str.support.title}</div>
+        <p className="text-txt-dim mb-3 text-xs leading-snug">{str.support.body}</p>
+        <div className="flex flex-wrap gap-2">
+          <NeuButton
+            variant="accent"
+            onClick={() =>
+              void api.shell.openExternal('https://github.com/sponsors/paulobrandaodev')
+            }
+          >
+            {str.support.sponsor}
+          </NeuButton>
+          <NeuButton
+            onClick={() => void api.shell.openExternal('https://ko-fi.com/paulobrandaodev')}
+          >
+            {str.support.kofi}
+          </NeuButton>
+        </div>
+        <div className="text-txt-micro mt-2.5 space-y-1 text-[11px] leading-snug">
+          <p>
+            <span className="text-txt-dim">{str.support.sponsor}</span> — {str.support.sponsorHint}
+          </p>
+          <p>
+            <span className="text-txt-dim">{str.support.kofi}</span> — {str.support.kofiHint}
+          </p>
+          <p className="pt-1">{str.support.otherWays}</p>
+        </div>
       </NeuCard>
 
       {paths && (

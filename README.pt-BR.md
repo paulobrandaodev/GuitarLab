@@ -1,10 +1,24 @@
+<div align="center">
+
+<img src="docs/logo.png" alt="GuitarLab" width="150">
+
 # GuitarLab
 
 [English](README.md) · **Português** · [Español](README.es.md)
 
-App desktop para consolidar o setlist da banda e estudar guitarra — tablaturas Guitar Pro, vídeos do YouTube, cifra/letra, cifra automática detectada do áudio, afinação, separação de stems na GPU e controle de progresso por trecho.
+App desktop para consolidar o setlist da banda e estudar guitarra — tablaturas
+Guitar Pro, vídeos do YouTube, cifra/letra, cifra automática detectada do áudio,
+afinação, separação de stems na GPU e controle de progresso por trecho.
 
 Electron + React + TypeScript + SQLite. Visual dark neumorphism.
+
+[![CI](https://github.com/paulobrandaodev/GuitarLab/actions/workflows/ci.yml/badge.svg)](https://github.com/paulobrandaodev/GuitarLab/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<br>
+[![Sponsor](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/paulobrandaodev)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/paulobrandaodev)
+
+</div>
 
 ---
 
@@ -274,9 +288,23 @@ exercitado no Windows.
 
 ## Apoie
 
-Se o GuitarLab te for útil, você pode [me pagar um café no
-Ko-fi](https://ko-fi.com/paulobrandaodev). Totalmente opcional, e nunca vai
-travar nenhum recurso — isso aqui continua livre e aberto de qualquer jeito.
+<div align="center">
+
+**O GuitarLab é livre, de código aberto, e vai continuar sendo.**
+
+Se ele te poupou uma noite brigando com tablatura, dá para agradecer assim:
+
+| | |
+|---|---|
+| [![Sponsor](https://img.shields.io/badge/GitHub%20Sponsors-Mensal%20ou%20avulso-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/paulobrandaodev) | Melhor se você já tem conta no GitHub. **Sem taxa nenhuma.** |
+| [![Ko-fi](https://img.shields.io/badge/Ko--fi-Me%20paga%20um%20caf%C3%A9-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/paulobrandaodev) | **Não precisa de conta.** Cartão ou PayPal, de qualquer país. |
+
+</div>
+
+Os dois funcionam de qualquer lugar do mundo, e nenhum deles vai travar recurso
+nenhum — não existe versão paga e não vai existir. Se dinheiro não é o que você
+quer gastar aqui, um relato de bug, uma tela traduzida, ou simplesmente contar
+para outro guitarrista ajuda do mesmo jeito.
 
 ---
 

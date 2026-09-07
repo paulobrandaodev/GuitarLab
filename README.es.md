@@ -1,3 +1,7 @@
+<div align="center">
+
+<img src="docs/logo.png" alt="GuitarLab" width="150">
+
 # GuitarLab
 
 [English](README.md) · [Português](README.pt-BR.md) · **Español**
@@ -11,6 +15,11 @@ Electron + React + TypeScript + SQLite. Interfaz oscura, estilo neumórfico.
 
 [![CI](https://github.com/paulobrandaodev/GuitarLab/actions/workflows/ci.yml/badge.svg)](https://github.com/paulobrandaodev/GuitarLab/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<br>
+[![Sponsor](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/paulobrandaodev)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/paulobrandaodev)
+
+</div>
 
 ---
 
@@ -224,10 +233,23 @@ aplicación solo se ha ejercitado de verdad en Windows.
 
 ## Apoyar el proyecto
 
-Si GuitarLab te resulta útil, puedes [invitarme a un café en
-Ko-fi](https://ko-fi.com/paulobrandaodev). Totalmente opcional, y nunca va a
-bloquear ninguna función — esto seguirá siendo libre y de código abierto de
-todas formas.
+<div align="center">
+
+**GuitarLab es libre, de código abierto, y va a seguir siéndolo.**
+
+Si te ahorró una noche peleándote con tablaturas, puedes darme las gracias así:
+
+| | |
+|---|---|
+| [![Sponsor](https://img.shields.io/badge/GitHub%20Sponsors-Mensual%20o%20puntual-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/paulobrandaodev) | Lo mejor si ya tienes cuenta en GitHub. **Sin comisiones.** |
+| [![Ko-fi](https://img.shields.io/badge/Ko--fi-Inv%C3%ADtame%20a%20un%20caf%C3%A9-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/paulobrandaodev) | **No hace falta cuenta.** Tarjeta o PayPal, desde cualquier país. |
+
+</div>
+
+Los dos funcionan desde cualquier parte del mundo, y ninguno va a bloquear
+ninguna función — no hay versión de pago ni la va a haber. Si el dinero no es lo
+que quieres gastar aquí, un informe de error, una pantalla traducida, o
+simplemente contárselo a otro guitarrista ayuda igual.
 
 ---
 

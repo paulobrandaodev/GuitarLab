@@ -235,6 +235,17 @@ export const ptBR = {
     }
   },
 
+  support: {
+    title: 'Apoie o projeto',
+    body:
+      'O GuitarLab é livre e de código aberto, e vai continuar sendo — não existe versão paga. Se ele te ajuda, dá para retribuir.',
+    sponsor: 'GitHub Sponsors',
+    sponsorHint: 'Sem taxa nenhuma. Precisa de conta no GitHub.',
+    kofi: 'Ko-fi',
+    kofiHint: 'Não precisa de conta. Cartão ou PayPal, de qualquer país.',
+    otherWays: 'Relatar um bug ou traduzir uma tela ajuda do mesmo jeito.'
+  },
+
   setup: {
     ffmpegMissing:
       'O FFmpeg não foi encontrado. Sem ele, importar áudio não funciona — é o único requisito obrigatório do app.',

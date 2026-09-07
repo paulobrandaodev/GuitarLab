@@ -1,3 +1,7 @@
+<div align="center">
+
+<img src="docs/logo.png" alt="GuitarLab" width="150">
+
 # GuitarLab
 
 **English** · [Português](README.pt-BR.md) · [Español](README.es.md)
@@ -11,6 +15,11 @@ Electron + React + TypeScript + SQLite. Dark neumorphic interface.
 
 [![CI](https://github.com/paulobrandaodev/GuitarLab/actions/workflows/ci.yml/badge.svg)](https://github.com/paulobrandaodev/GuitarLab/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<br>
+[![Sponsor](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/paulobrandaodev)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/paulobrandaodev)
+
+</div>
 
 ---
 
@@ -396,9 +405,23 @@ has really only been exercised on Windows.
 
 ## Support
 
-If GuitarLab is useful to you, you can [buy me a coffee on
-Ko-fi](https://ko-fi.com/paulobrandaodev). Entirely optional, and it will never
-gate a feature — this stays free and open source either way.
+<div align="center">
+
+**GuitarLab is free, open source, and always will be.**
+
+If it saved you an evening of fighting with tabs, you can say thanks:
+
+| | |
+|---|---|
+| [![Sponsor](https://img.shields.io/badge/GitHub%20Sponsors-Monthly%20or%20one--off-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/paulobrandaodev) | Best if you already have a GitHub account. Takes **0% in fees**. |
+| [![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/paulobrandaodev) | **No account needed.** Card or PayPal, from any country. |
+
+</div>
+
+Either one works from anywhere in the world, and neither will ever gate a
+feature — there is no paid tier and there is not going to be one. If money is
+not something you want to spend here, a bug report, a translated screen, or
+simply telling another guitarist about it helps just as much.
 
 ---
 

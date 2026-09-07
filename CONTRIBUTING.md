@@ -157,3 +157,21 @@ much better than no report.
   Linux and macOS reports are genuinely useful.
 - **Chord detection quality.** `lab/app/main.py` scores chroma against chord
   templates with a Viterbi pass; the template set is deliberately small.
+
+---
+
+## Not writing code?
+
+Contributing is not only pull requests. Reporting a bug clearly, translating a
+screen, or telling another guitarist about the app all help.
+
+If you would rather support it financially, there are two ways and both work
+from anywhere in the world:
+
+- **[GitHub Sponsors](https://github.com/sponsors/paulobrandaodev)** — no fees
+  at all, monthly or one-off. Best if you already have a GitHub account.
+- **[Ko-fi](https://ko-fi.com/paulobrandaodev)** — no account needed, card or
+  PayPal.
+
+Neither will ever gate a feature. There is no paid tier and there is not going
+to be one.

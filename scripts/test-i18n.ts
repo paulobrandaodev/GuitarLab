@@ -141,7 +141,11 @@ const SAME_ON_PURPOSE = new Set([
   'settings.language',
   'settings.disconnected',
   'settings.connected',
-  'setlist.library'
+  'setlist.library',
+
+  /* Platform names. Nobody translates "Ko-fi". */
+  'support.sponsor',
+  'support.kofi'
 ])
 
 const pt = Object.fromEntries(leaves(CATALOGS['pt-BR'] as unknown as Node))

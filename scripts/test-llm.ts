@@ -67,7 +67,14 @@ async function callGemini(prompt: string, system: string): Promise<string> {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 8192,
+          /*
+           * Matches the driver in services/llm — and it has to. Gemini 3.x
+           * spends 1500-2700 thinking tokens on this prompt before writing a
+           * character, and they come out of this same budget, so half the
+           * app's ceiling truncates a four-patch answer intermittently. The
+           * test was failing on a limit the app does not use.
+           */
+          maxOutputTokens: 16384,
           responseMimeType: 'application/json'
         }
       })

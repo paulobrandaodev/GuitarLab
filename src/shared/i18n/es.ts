@@ -218,6 +218,17 @@ export const es: Catalog = {
     }
   },
 
+  support: {
+    title: 'Apoyar el proyecto',
+    body:
+      'GuitarLab es libre y de código abierto, y va a seguir siéndolo — no hay versión de pago. Si te sirve, puedes devolver algo.',
+    sponsor: 'GitHub Sponsors',
+    sponsorHint: 'Sin comisiones. Necesita una cuenta de GitHub.',
+    kofi: 'Ko-fi',
+    kofiHint: 'No hace falta cuenta. Tarjeta o PayPal, desde cualquier país.',
+    otherWays: 'Informar de un error o traducir una pantalla ayuda igual.'
+  },
+
   setup: {
     ffmpegMissing:
       'No se encontró FFmpeg. Sin él, importar audio no funciona — es el único requisito obligatorio de la aplicación.',
