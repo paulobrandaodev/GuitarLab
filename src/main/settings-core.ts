@@ -185,7 +185,7 @@ export const SETTING_SPECS: readonly SettingSpec[] = [
     key: 'musicbrainzUserAgent',
     envKeys: ['MUSICBRAINZ_USER_AGENT'],
     secret: false,
-    fallback: 'GuitarLab/0.1 ( guitarlab )',
+    fallback: 'GuitarLab/0.2 ( guitarlab )',
     group: 'app'
   },
 
