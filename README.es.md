@@ -198,7 +198,7 @@ elige un paquete.
 
 | Paquete | Descarga | En disco | Para |
 |---|---|---|---|
-| Procesador (CPU) | ~400 MB | ~1,1 GB | cualquier máquina |
+| Procesador (CPU) | ~400 MB | ~1,8 GB | cualquier máquina |
 | NVIDIA (CUDA) | ~2,7 GB | ~7 GB | tarjeta NVIDIA, driver 525+ |
 
 La aplicación descarga [uv](https://github.com/astral-sh/uv), le pide un CPython

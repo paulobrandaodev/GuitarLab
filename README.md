@@ -192,7 +192,7 @@ It installs from inside the app: open the **Lab** tab and pick a pack.
 
 | Pack | Download | On disk | For |
 |---|---|---|---|
-| Processor (CPU) | ~400 MB | ~1.1 GB | any machine |
+| Processor (CPU) | ~400 MB | ~1.8 GB | any machine |
 | NVIDIA (CUDA) | ~2.7 GB | ~7 GB | an NVIDIA card, driver 525+ |
 
 The app downloads [uv](https://github.com/astral-sh/uv), has it fetch a private

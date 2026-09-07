@@ -157,11 +157,15 @@ export function packApproxBytes(pack: LabPack): number {
  * Used as the denominator for progress inside an install step: uv prints a
  * summary rather than a per-package percentage when its output is not a
  * terminal, so the honest way to show movement during a 2.7 GB download is to
- * watch the venv grow on disk. Approximate by nature, and clamped by the
- * caller, but it is real bytes rather than an animation.
+ * watch the venv grow on disk.
+ *
+ * The CPU figure is measured — a real install came to 1.83 GB. CUDA is that
+ * plus the `nvidia-*-cu12` wheels, and is an extrapolation. Erring high is
+ * deliberate: too low and the bar reaches its 0.98 ceiling early and sits there
+ * looking hung, which is exactly the impression this is here to avoid.
  */
 export function packApproxDiskBytes(pack: LabPack): number {
-  return pack === 'cuda' ? 7_000_000_000 : 1_100_000_000
+  return pack === 'cuda' ? 7_500_000_000 : 1_900_000_000
 }
 
 export interface InstallStep {
@@ -340,12 +344,15 @@ export interface LabModel {
  * "best quality" and "slowest, best of the four-stem models".
  */
 export const LAB_MODELS: readonly LabModel[] = [
-  { id: 'htdemucs_6s', family: 'demucs', approxBytes: 320_000_000 },
-  { id: 'htdemucs', family: 'demucs', approxBytes: 320_000_000 },
-  { id: 'htdemucs_ft', family: 'demucs', approxBytes: 1_100_000_000 },
-  { id: 'tiny', family: 'whisper', approxBytes: 75_000_000 },
-  { id: 'base', family: 'whisper', approxBytes: 145_000_000 },
-  { id: 'small', family: 'whisper', approxBytes: 480_000_000 },
+  // htdemucs_6s and whisper tiny are measured from a real download; the rest
+  // are scaled from them. htdemucs_ft is four times the size of the others
+  // because it is a bag of four fine-tuned models rather than one.
+  { id: 'htdemucs_6s', family: 'demucs', approxBytes: 55_000_000 },
+  { id: 'htdemucs', family: 'demucs', approxBytes: 80_000_000 },
+  { id: 'htdemucs_ft', family: 'demucs', approxBytes: 320_000_000 },
+  { id: 'tiny', family: 'whisper', approxBytes: 78_000_000 },
+  { id: 'base', family: 'whisper', approxBytes: 150_000_000 },
+  { id: 'small', family: 'whisper', approxBytes: 500_000_000 },
   { id: 'medium', family: 'whisper', approxBytes: 1_500_000_000 }
 ] as const
 

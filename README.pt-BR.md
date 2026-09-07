@@ -74,7 +74,7 @@ Instala-se de dentro do app: abra a aba **Laboratório** e escolha um pacote.
 
 | Pacote | Download | Em disco | Para |
 |---|---|---|---|
-| Processador (CPU) | ~400 MB | ~1,1 GB | qualquer máquina |
+| Processador (CPU) | ~400 MB | ~1,8 GB | qualquer máquina |
 | NVIDIA (CUDA) | ~2,7 GB | ~7 GB | placa NVIDIA, driver 525+ |
 
 O app baixa o [uv](https://github.com/astral-sh/uv), pede a ele um CPython 3.10
