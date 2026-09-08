@@ -98,7 +98,7 @@ anula en silencio una clave recién pegada sea visible y no desconcertante.
 
 ## Cómo se usa
 
-1. Pon archivos `.gp3/.gp4/.gp5/.gpx/.gp` en [gptabs/](gptabs/) y audio
+1. Pon archivos `.gp3/.gp4/.gp5/.gp7/.gpx/.gp/.gtp` en [gptabs/](gptabs/) y audio
    (`mp3/wav/flac/m4a/ogg`) en [songs/](songs/) — o apunta la aplicación a tus
    propias carpetas desde Ajustes.
 2. Abre la aplicación → **Importar pastas**.

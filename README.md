@@ -95,7 +95,7 @@ pasted is visible rather than baffling.
 
 ## Using it
 
-1. Put `.gp3/.gp4/.gp5/.gpx/.gp` files in [gptabs/](gptabs/) and audio
+1. Put `.gp3/.gp4/.gp5/.gp7/.gpx/.gp/.gtp` files in [gptabs/](gptabs/) and audio
    (`mp3/wav/flac/m4a/ogg`) in [songs/](songs/) — or point the app at your own
    folders in Settings.
 2. Open the app → **Importar pastas**.

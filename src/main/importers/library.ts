@@ -10,7 +10,7 @@ import { probeAudio, measureLoudness, generateWaveformPeaks, ffmpegAvailable } f
 import { PRACTICE_INSTRUMENT } from '@shared/types'
 import type { ImportReport, Instrument } from '@shared/types'
 
-const GP_EXT = new Set(['.gp3', '.gp4', '.gp5', '.gpx', '.gp', '.gp7'])
+const GP_EXT = new Set(['.gp3', '.gp4', '.gp5', '.gpx', '.gp', '.gp7', '.gtp'])
 const AUDIO_EXT = new Set(['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.opus', '.wma'])
 
 function listFiles(dir: string, allowed: Set<string>): string[] {

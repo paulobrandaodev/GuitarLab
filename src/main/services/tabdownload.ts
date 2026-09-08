@@ -19,7 +19,7 @@ import type { DownloadProgress } from '@shared/types'
  * between sessions without touching the app's own session.
  */
 
-const GP_EXT = new Set(['.gp3', '.gp4', '.gp5', '.gpx', '.gp', '.gp7', '.ptb'])
+const GP_EXT = new Set(['.gp3', '.gp4', '.gp5', '.gpx', '.gp', '.gp7', '.gtp', '.ptb'])
 const AUDIO_EXT = new Set(['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.opus'])
 const PARTITION = 'persist:tabsites'
 
@@ -30,11 +30,38 @@ let pendingSongId: number | null = null
 let listener: DownloadListener | null = null
 let wired = false
 
-function destinationFor(fileName: string): { dir: string; kind: 'guitarpro' | 'audio' } | null {
-  const ext = extname(fileName).toLowerCase()
+function kindForExt(ext: string): { dir: string; kind: 'guitarpro' | 'audio' } | null {
   if (GP_EXT.has(ext)) return { dir: config.paths.gptabs, kind: 'guitarpro' }
   if (AUDIO_EXT.has(ext)) return { dir: config.paths.songs, kind: 'audio' }
   return null
+}
+
+/**
+ * Where a download belongs, and under what name.
+ *
+ * The extension in `Content-Disposition` is the first answer, but tab sites
+ * hand out plenty of links whose filename carries none — the type only shows up
+ * in the URL that served it. Falling back to the URL is what keeps a `.gtp`
+ * from bouncing out to the Save dialog and landing in the user's Downloads
+ * folder instead of gptabs/, and the recovered extension is appended to the
+ * saved name so the importer (which matches on extension) still sees it.
+ */
+function destinationFor(
+  fileName: string,
+  url: string
+): { dir: string; kind: 'guitarpro' | 'audio'; fileName: string } | null {
+  const own = kindForExt(extname(fileName).toLowerCase())
+  if (own) return { ...own, fileName }
+
+  let urlExt = ''
+  try {
+    urlExt = extname(new URL(url).pathname).toLowerCase()
+  } catch {
+    // a data: or blob: URL has no path to read an extension from
+  }
+  const fromUrl = urlExt ? kindForExt(urlExt) : null
+  if (!fromUrl) return null
+  return { ...fromUrl, fileName: `${fileName}${urlExt}` }
 }
 
 function emit(event: DownloadProgress): void {
@@ -82,14 +109,14 @@ function wire(target: Session): void {
 
   target.on('will-download', (_event, item: DownloadItem) => {
     const songId = pendingSongId
-    const fileName = item.getFilename()
-    const dest = destinationFor(fileName)
+    const dest = destinationFor(item.getFilename(), item.getURL())
 
     if (!dest || songId === null) {
       // not a file this app knows what to do with: let the user save it wherever
       return
     }
 
+    const fileName = dest.fileName
     const savePath = uniquePath(dest.dir, fileName)
     item.setSavePath(savePath)
 

@@ -95,7 +95,7 @@ Tudo fica na pasta de dados do app, e **Remover o laboratório** desfaz.
 
 ## Como usar
 
-1. Coloque arquivos `.gp3/.gp4/.gp5/.gpx/.gp` em [gptabs/](gptabs/) e áudios (`mp3/wav/flac/m4a/ogg`) em [songs/](songs/).
+1. Coloque arquivos `.gp3/.gp4/.gp5/.gp7/.gpx/.gp/.gtp` em [gptabs/](gptabs/) e áudios (`mp3/wav/flac/m4a/ogg`) em [songs/](songs/).
 2. Abra o app → **Importar pastas**.
 3. As músicas aparecem com afinação, andamento, tonalidade, seções, letra e acordes já extraídos dos arquivos Guitar Pro.
 4. Adicione ao setlist, abra **Estudar** e comece.
@@ -172,7 +172,7 @@ e o dirige, então elas são regeradas em vez de refeitas na mão.
 </tr>
 <tr>
 <td><b>Afinador</b> — microfone e detecção de pitch, com o preset vindo do arquivo GP.</td>
-<td><b>Modo Palco</b> — tela cheia, letra e cifra grandes, avanço por teclado ou pedal (setas / PageUp / PageDown).</td>
+<td><b>Modo Palco</b> — tela cheia, cifra grande e ajustável, repertório com as trocas de afinação, avanço por teclado ou pedal (setas / PageUp / PageDown).</td>
 </tr>
 </table>
 
