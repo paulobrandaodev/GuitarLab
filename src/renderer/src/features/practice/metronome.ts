@@ -61,3 +61,53 @@ export function createMetronome(ctx: AudioContext): Metronome {
     }
   }
 }
+
+/**
+ * A metronome with nothing to stay in sync with.
+ *
+ * The stem player's click hangs off the audio bus, because there it has to land
+ * on the beat of a recording that is already playing. On stage there is no
+ * recording — the band is the recording — so this one runs on its own clock and
+ * only has to be steady.
+ *
+ * Clicks are queued a quarter second ahead from a `setInterval` rather than
+ * fired one at a time, for the same reason as in the player: a timer callback
+ * arrives late whenever the window is busy, and a metronome that drops a beat
+ * while someone scrolls a chart is worse than no metronome at all. The
+ * AudioContext clock is what the beats are actually pinned to; the interval
+ * only decides how far ahead to fill it.
+ */
+export function startFreeMetronome(
+  bpm: number,
+  beatsPerBar: number
+): { stop: () => void } {
+  const ctx = new AudioContext()
+  const metronome = createMetronome(ctx)
+  metronome.output.connect(ctx.destination)
+
+  const period = 60 / (bpm > 0 ? bpm : 120)
+  const lookahead = 0.25
+  const bar = Math.max(1, Math.round(beatsPerBar))
+
+  // start a beat away, so the first click is scheduled rather than late
+  let nextAt = ctx.currentTime + 0.12
+  let beat = 0
+
+  const pump = (): void => {
+    while (nextAt < ctx.currentTime + lookahead) {
+      metronome.click(nextAt, beat % bar === 0)
+      nextAt += period
+      beat++
+    }
+  }
+  pump()
+  const timer = setInterval(pump, 100)
+
+  return {
+    stop: () => {
+      clearInterval(timer)
+      metronome.dispose()
+      void ctx.close()
+    }
+  }
+}

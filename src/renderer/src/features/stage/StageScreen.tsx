@@ -1,7 +1,25 @@
 import { useEffect, useState, useCallback, useMemo, useRef, type ReactNode } from 'react'
-import { Badge, Spinner, EmptyState, NeuButton, NeuSelect, cx } from '../../components/ui'
+import {
+  Badge,
+  Spinner,
+  EmptyState,
+  NeuButton,
+  NeuSelect,
+  NeuSlider,
+  cx
+} from '../../components/ui'
 import { ChordProView } from '../../components/ui/chordpro'
-import { IconArrowLeft, IconX, IconSetlist, IconTuner } from '../../components/ui/icons'
+import {
+  IconArrowLeft,
+  IconX,
+  IconSetlist,
+  IconTuner,
+  IconPlay,
+  IconPause,
+  IconMetronome
+} from '../../components/ui/icons'
+import { startFreeMetronome } from '../practice/metronome'
+import { parseBeatsPerBar } from '@shared/tempo'
 import { api } from '../../lib/api'
 import { useNav } from '../../App'
 import { useStrings } from '../../lib/i18n'
@@ -20,6 +38,34 @@ function readStoredSize(): number {
     // a locked-down profile refuses storage; the default is fine
   }
   return 26
+}
+
+/** Auto-scroll speed, 1 to 10. Persisted with the type size: both are the room. */
+const SCROLL_KEY = 'guitarlab.stage.scrollSpeed'
+const SCROLL_STEPS = 10
+/** Only the ends and the middle get a number; ten of them crowd the track. */
+const SCROLL_TICKS = [1, 5, 10]
+
+/**
+ * Pixels per second at each of the ten steps.
+ *
+ * Linear, from a crawl to about a line and a half a second at stage type size.
+ * Ten steps rather than a free slider because the useful range is narrow and
+ * the control is operated with a guitar in hand: a detent you can count is
+ * worth more than a value you can fine-tune.
+ */
+function scrollPxPerSecond(step: number): number {
+  return step * 12
+}
+
+function readStoredSpeed(): number {
+  try {
+    const raw = Number(localStorage.getItem(SCROLL_KEY))
+    if (Number.isInteger(raw) && raw >= 1 && raw <= SCROLL_STEPS) return raw
+  } catch {
+    // a locked-down profile refuses storage; the default is fine
+  }
+  return 4
 }
 
 /** Strip the LRC timestamps so a synced lyric reads as a plain one. */
@@ -62,6 +108,9 @@ export function StageScreen({ setlistId }: { setlistId?: number }): ReactNode {
   const [loading, setLoading] = useState(true)
   const [fontSize, setFontSize] = useState(readStoredSize)
   const [showList, setShowList] = useState(false)
+  const [scrolling, setScrolling] = useState(false)
+  const [scrollSpeed, setScrollSpeed] = useState(readStoredSpeed)
+  const [clicking, setClicking] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -119,8 +168,10 @@ export function StageScreen({ setlistId }: { setlistId?: number }): ReactNode {
       const content =
         source.format === 'lrc' ? plainFromLrc(source.content) : source.content
       setChart(content.trim() ? { content, chordPro: source.format === 'chordpro' } : null)
-      // a new song starts at its top, whatever the last one was scrolled to
+      // a new song starts at its top, and not already rolling: the auto-scroll
+      // was pacing the last song, and it has no idea how this one goes
       scrollRef.current?.scrollTo({ top: 0 })
+      setScrolling(false)
     })
     return () => {
       alive = false
@@ -144,6 +195,75 @@ export function StageScreen({ setlistId }: { setlistId?: number }): ReactNode {
       return nextSize
     })
   }, [])
+
+  /*
+   * The auto-scroll.
+   *
+   * Driven from `requestAnimationFrame` and integrated over the real elapsed
+   * time rather than assuming 60fps, so the chart travels at the same speed on
+   * a machine that is dropping frames. `scrollTop` is an integer, so the
+   * fraction of a pixel left over each frame is carried forward — without that
+   * the slowest steps round to zero every frame and the page never moves.
+   *
+   * It stops itself at the bottom instead of spinning on a scroll that cannot
+   * go any further: reaching the end of the song is the moment to look up, not
+   * to keep a timer running.
+   */
+  useEffect(() => {
+    if (!scrolling) return
+    const el = scrollRef.current
+    if (!el) return
+
+    let frame = 0
+    let last = performance.now()
+    let carry = 0
+
+    const tick = (now: number): void => {
+      const dt = Math.min(0.25, (now - last) / 1000)
+      last = now
+      carry += scrollPxPerSecond(scrollSpeed) * dt
+      const whole = Math.floor(carry)
+      if (whole > 0) {
+        carry -= whole
+        const before = el.scrollTop
+        el.scrollTop = before + whole
+        if (el.scrollTop === before) {
+          setScrolling(false)
+          return
+        }
+      }
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [scrolling, scrollSpeed])
+
+  const pickSpeed = useCallback((next: number) => {
+    const step = Math.max(1, Math.min(SCROLL_STEPS, Math.round(next)))
+    setScrollSpeed(step)
+    try {
+      localStorage.setItem(SCROLL_KEY, String(step))
+    } catch {
+      // not remembering the speed is survivable
+    }
+  }, [])
+
+  /*
+   * The click, at the song's own tempo.
+   *
+   * Torn down and rebuilt whenever the song or the switch changes, which is
+   * what makes moving to the next song pick up its BPM rather than keep the
+   * last one. A song with no BPM cannot have a click, so the button is disabled
+   * rather than guessing 120 and being confidently wrong all night.
+   */
+  const currentBpm = current?.song.bpm ?? null
+  const currentSignature = current?.song.timeSignature ?? null
+
+  useEffect(() => {
+    if (!clicking || !currentBpm) return
+    const handle = startFreeMetronome(currentBpm, parseBeatsPerBar(currentSignature))
+    return () => handle.stop()
+  }, [clicking, currentBpm, currentSignature])
 
   /** Half a screen at a time, which is how a long chart is actually read. */
   const scrollChart = useCallback((direction: 1 | -1) => {
@@ -179,6 +299,10 @@ export function StageScreen({ setlistId }: { setlistId?: number }): ReactNode {
         resize(-2)
       } else if (e.key.toLowerCase() === 'l') {
         setShowList((v) => !v)
+      } else if (e.key.toLowerCase() === 'a') {
+        setScrolling((v) => !v)
+      } else if (e.key.toLowerCase() === 'm') {
+        setClicking((v) => !v)
       } else if (e.key === 'Escape') {
         if (showList) setShowList(false)
         else go({ name: 'setlist' })
@@ -231,7 +355,9 @@ export function StageScreen({ setlistId }: { setlistId?: number }): ReactNode {
 
   return (
     <div className="bg-void flex h-full flex-col">
-      <header className="drag-region flex shrink-0 items-center justify-between gap-4 px-6 py-3">
+      {/* `window-controls-room` keeps the right-hand cluster out from under the
+          minimise/maximise/close buttons the OS draws over this strip */}
+      <header className="drag-region window-controls-room flex shrink-0 items-center justify-between gap-4 px-6 py-3">
         <div className="no-drag flex min-w-0 items-center gap-3">
           <button
             onClick={() => go({ name: 'setlist' })}
@@ -307,7 +433,7 @@ export function StageScreen({ setlistId }: { setlistId?: number }): ReactNode {
             </h1>
           </div>
 
-          <div ref={scrollRef} className="scroll-area min-h-0 flex-1 pr-2">
+          <div ref={scrollRef} className="scroll-area min-h-0 flex-1 pr-2 pb-4">
             {chart ? (
               chart.chordPro ? (
                 <ChordProView
@@ -385,6 +511,65 @@ export function StageScreen({ setlistId }: { setlistId?: number }): ReactNode {
             )}
           </aside>
         )}
+      </div>
+
+      {/*
+        The transport.
+
+        Its own strip rather than more buttons in the header, which is already
+        holding the position, the setlist, the badges and the clock — and which
+        is the row the window controls sit on. Down here it is also nearer the
+        hands, and reachable without looking away from the chart.
+      */}
+      <div className="border-edge/70 mx-10 flex shrink-0 flex-wrap items-center gap-4 border-t pt-3">
+        <button
+          onClick={() => setScrolling((v) => !v)}
+          className={cx(
+            'grid h-11 w-11 shrink-0 place-items-center rounded-[14px]',
+            scrolling ? 'neu-glow text-accent-2' : 'neu-press text-txt-dim hover:text-txt'
+          )}
+          title={scrolling ? str.scrollPause : str.scrollPlay}
+          aria-label={scrolling ? str.scrollPause : str.scrollPlay}
+          aria-pressed={scrolling}
+        >
+          {scrolling ? (
+            <IconPause width={17} height={17} />
+          ) : (
+            <IconPlay width={17} height={17} />
+          )}
+        </button>
+
+        <div className="min-w-[220px] flex-1">
+          <div className="mb-1 flex items-baseline justify-between">
+            <span className="micro-label">{str.scrollSpeed}</span>
+            <span className="text-txt-dim text-[11px] tabular-nums">
+              {scrollSpeed}/{SCROLL_STEPS}
+            </span>
+          </div>
+          <NeuSlider
+            value={scrollSpeed}
+            min={1}
+            max={SCROLL_STEPS}
+            step={1}
+            onChange={pickSpeed}
+            ticks={SCROLL_TICKS}
+          />
+        </div>
+
+        <button
+          onClick={() => setClicking((v) => !v)}
+          disabled={!currentBpm}
+          className={cx(
+            'flex h-11 shrink-0 items-center gap-2 rounded-[14px] px-4 text-xs font-semibold',
+            clicking ? 'neu-glow text-accent-2' : 'neu-press text-txt-dim hover:text-txt',
+            !currentBpm && 'cursor-not-allowed opacity-40'
+          )}
+          title={currentBpm ? str.metronomeHint : str.metronomeNoBpm}
+          aria-pressed={clicking}
+        >
+          <IconMetronome width={17} height={17} />
+          {currentBpm ? str.metronomeBpm(Math.round(currentBpm)) : str.metronome}
+        </button>
       </div>
 
       <footer className="flex shrink-0 items-center justify-between gap-4 px-10 py-4">
