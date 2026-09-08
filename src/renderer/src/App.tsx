@@ -78,7 +78,13 @@ const NAV_ITEMS: Array<{ name: Route['name']; icon: typeof IconSetlist; title: s
   { name: 'setlist', icon: IconSetlist, title: 'Setlist' },
   { name: 'practice', icon: IconPractice, title: 'Estudar' },
   { name: 'lab', icon: IconLab, title: 'Laboratório' },
-  { name: 'progress', icon: IconProgress, title: 'Progresso' }
+  { name: 'progress', icon: IconProgress, title: 'Progresso' },
+  /*
+   * Stage mode belongs in the bottom bar and not only in the title bar: it is
+   * the one screen reached in a hurry, with a guitar in hand, from across a
+   * room. The 52px targets down here are the ones you can hit like that.
+   */
+  { name: 'stage', icon: IconStage, title: 'Modo Palco' }
 ]
 
 function TitleBar({ onBack, canBack }: { onBack: () => void; canBack: boolean }): ReactNode {

@@ -237,6 +237,27 @@ export const es: Catalog = {
     dismiss: 'descartar'
   },
 
+  stage: {
+    emptyTitle: 'Setlist vacío',
+    emptyBody: 'Agrega canciones a un setlist para usar el Modo Escenario.',
+    backToSetlist: 'Volver al setlist',
+    exit: 'Salir (Esc)',
+    exitLabel: 'Salir del modo escenario',
+    smaller: 'Reducir la letra (−)',
+    bigger: 'Aumentar la letra (+)',
+    repertoire: 'Repertorio',
+    repertoireKey: 'Repertorio (L)',
+    noChart: 'Sin cifrado ni letra guardados para esta canción.',
+    noChartHint: 'Cifrado y Letra, en la pantalla de la canción, es donde van.',
+    retunes: 'Cambios de afinación',
+    previous: 'anterior',
+    next: 'siguiente',
+    upNext: 'a continuación',
+    lastOfSet: 'última del set',
+    switchTo: (tuning: string) => `cambiar a ${tuning}`,
+    help: '←/→ o el pedal cambia de canción · ↑/↓ y espacio desplazan el cifrado · +/− tamaño · L repertorio · Esc sale'
+  },
+
   setlist: {
     library: 'Biblioteca',
     noSongs: 'Todavía no hay canciones',

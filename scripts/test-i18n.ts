@@ -116,6 +116,8 @@ const SAME_ON_PURPOSE = new Set([
   'settings.fields.ollamaModel',
   'settings.fields.demucsSegment',
   'setup.openSettings',
+  // "anterior" really is the Spanish word too
+  'stage.previous',
   'setlist.import',
   'common.cancel',
   'common.confirm',

@@ -236,6 +236,27 @@ export const en: Catalog = {
     dismiss: 'dismiss'
   },
 
+  stage: {
+    emptyTitle: 'Empty setlist',
+    emptyBody: 'Add songs to a setlist to use Stage Mode.',
+    backToSetlist: 'Back to the setlist',
+    exit: 'Exit (Esc)',
+    exitLabel: 'Exit stage mode',
+    smaller: 'Smaller type (−)',
+    bigger: 'Bigger type (+)',
+    repertoire: 'Set',
+    repertoireKey: 'Set (L)',
+    noChart: 'No chord chart or lyrics saved for this song.',
+    noChartHint: 'Chords & Lyrics, on the song screen, is where they go.',
+    retunes: 'Tuning changes',
+    previous: 'previous',
+    next: 'next',
+    upNext: 'up next',
+    lastOfSet: 'last of the set',
+    switchTo: (tuning: string) => `switch to ${tuning}`,
+    help: '←/→ or a pedal changes song · ↑/↓ and space scroll the chart · +/− size · L set · Esc exits'
+  },
+
   setlist: {
     library: 'Library',
     noSongs: 'No songs yet',

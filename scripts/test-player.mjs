@@ -584,8 +584,10 @@ app.whenReady().then(async () => {
     /*
      * Read the chart panel itself, not the page: the lyric also sits in the
      * Letra card next to it, so a match on `document.body` would pass even if
-     * the cifra came out empty. The ChordPro reader draws every chord as its own
-     * floating span, which is what makes them countable.
+     * the cifra came out empty. The ChordPro reader writes each line as a chord
+     * row above its lyric, so the rows are what there is to count — and the
+     * chord symbols inside them are what makes the count mean something, since
+     * an empty row would otherwise pass.
      */
     const cifra = await evaluate(
       win,
@@ -594,16 +596,26 @@ app.whenReady().then(async () => {
           typeof d.className === 'string' && d.className.includes('font-mono')
         )
         if (!panel) return { found: false }
-        const spans = [...panel.querySelectorAll('span')]
+        const rows = [...panel.querySelectorAll('div')].filter(
+          (d) => typeof d.className === 'string' && d.className.includes('text-accent-2')
+        )
+        const symbols = rows
+          .flatMap((r) => r.innerText.trim().split(/\\s+/))
+          .filter((t) => /^[A-G][#b]?/.test(t))
         return {
           found: true,
-          labels: spans.filter((s) => s.className.includes('gradient-text')).length,
+          rows: rows.length,
+          labels: symbols.length,
           lyric: ${JSON.stringify(stub.sungWords ?? [])}.filter((w) => panel.innerText.includes(w)).length
         }
       })()`
     )
     check('a cifra apareceu no painel', cifra.found)
-    check('com os acordes desenhados', cifra.labels > 5, `${cifra.labels} acordes`)
+    check(
+      'com os acordes desenhados',
+      cifra.labels > 5,
+      `${cifra.labels} acordes em ${cifra.rows} linhas`
+    )
     check(
       'e a letra sincronizada dentro dela',
       stub.sungWords.length === 0 || cifra.lyric >= Math.min(2, stub.sungWords.length),

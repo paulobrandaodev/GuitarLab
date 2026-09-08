@@ -254,6 +254,34 @@ export const ptBR = {
     dismiss: 'dispensar'
   },
 
+  /**
+   * Stage mode: the full-screen performance view.
+   *
+   * Migrated to the catalogue with the screen itself, rather than left in the
+   * .tsx — it is the screen a player is most likely to hand to a bandmate who
+   * does not read Portuguese.
+   */
+  stage: {
+    emptyTitle: 'Setlist vazio',
+    emptyBody: 'Adicione músicas a um setlist para usar o Modo Palco.',
+    backToSetlist: 'Voltar ao setlist',
+    exit: 'Sair (Esc)',
+    exitLabel: 'Sair do modo palco',
+    smaller: 'Diminuir a letra (−)',
+    bigger: 'Aumentar a letra (+)',
+    repertoire: 'Repertório',
+    repertoireKey: 'Repertório (L)',
+    noChart: 'Sem cifra ou letra cadastrada para esta música.',
+    noChartHint: 'Cifra & Letra, na tela da música, é onde ela entra.',
+    retunes: 'Trocas de afinação',
+    previous: 'anterior',
+    next: 'próxima',
+    upNext: 'a seguir',
+    lastOfSet: 'última do set',
+    switchTo: (tuning: string) => `trocar para ${tuning}`,
+    help: '←/→ ou pedal troca de música · ↑/↓ e espaço rolam a cifra · +/− tamanho · L repertório · Esc sai'
+  },
+
   setlist: {
     library: 'Biblioteca',
     noSongs: 'Nenhuma música ainda',
