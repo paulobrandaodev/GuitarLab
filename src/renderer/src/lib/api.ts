@@ -33,6 +33,22 @@ import type {
   ToolProgress
 } from '@shared/types'
 
+export type InsightKind =
+  | 'practice_plan'
+  | 'technique_breakdown'
+  | 'tone_advice'
+  | 'structure_summary'
+  | 'daily_plan'
+
+/** One cached AI answer, with when and by whom it was written. */
+export interface InsightView {
+  content: string
+  provider: string | null
+  model: string | null
+  /** Unix seconds. */
+  createdAt: number
+}
+
 /** Mirrors the shape exposed by the preload bridge. */
 export interface Api {
   library: {
@@ -264,6 +280,20 @@ export interface Api {
     setRig: (rig: RigView) => Promise<RigView>
     patch: (songId: number) => Promise<TonePlanView | null>
   }
+  /**
+   * The AI answers already stored for a song.
+   *
+   * Screens read this on mount so the answer that was already paid for is on
+   * screen straight away, and only the explicit "gerar de novo" buttons reach
+   * for `llm` and spend a request.
+   */
+  insights: {
+    get: (
+      songId: number,
+      kind: InsightKind,
+      sectionId?: number | null
+    ) => Promise<InsightView | null>
+  }
   llm: {
     onProgress: (cb: (event: LlmProgressEvent) => void) => () => void
     status: () => Promise<{
@@ -282,6 +312,8 @@ export interface Api {
     toneAdvice: (
       songId: number
     ) => Promise<{ content: string; provider: string; model: string } | { error: string }>
+    /** Asks for the song's structure and rewrites its sections with the answer. */
+    sections: (songId: number) => Promise<{ sections: SectionView[] } | { error: string }>
     tonePatch: (songId: number) => Promise<TonePlanView | { error: string }>
     classifyVideos: (videos: unknown[]) => Promise<{
       assignments: Array<{ index: number; role: string; confidence: number }>

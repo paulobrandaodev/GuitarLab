@@ -127,6 +127,94 @@ export function techniqueSystemPrompt(locale: Locale): string {
   )
 }
 
+/**
+ * The per-part walkthrough behind "Dicas para esta música".
+ *
+ * Two things make this prompt worth its own function. It asks the model to go
+ * part by part rather than to summarise the song, because the answer is read
+ * next to a tablature that is already open at one of those parts; and it pins
+ * the difficulty to a five-star scale with the anchors spelled out, because
+ * "difficult" from a model that has read a thousand transcription forums drifts
+ * upward until everything is a five.
+ *
+ * The stars are asked for as literal filled/empty characters rather than a
+ * number so they survive the markdown renderer with no parsing on our side.
+ */
+export function techniquePrompt(context: string, sectionScope: string | null): string {
+  const scope = sectionScope
+    ? `Focus on ${sectionScope}, but keep the same structure below.`
+    : 'Cover every part of the song, in playing order.'
+
+  return (
+    `${context}\n\n${scope}\n\n` +
+    'Write the answer as markdown, in this shape:\n\n' +
+    '1. A `##` heading per part of the song, named after the section when the ' +
+    'sections are listed above, and by what happens musically when they are not ' +
+    '(for example "Intro - arpejo limpo").\n' +
+    '2. Directly under each heading, one line exactly like ' +
+    '`**Dificuldade:** ★★★☆☆ (3/5) - <six words on what makes it that hard>`. ' +
+    'Use the filled star ★ and the empty star ☆, five characters in total.\n' +
+    '3. Then, for that part: what is actually played (technique, position on the ' +
+    'neck, which hand carries the work), what usually goes wrong, and one ' +
+    'concrete exercise with the BPM to start at and the BPM to reach.\n' +
+    '4. Finish with a `##` heading for the practice order - which parts to attack ' +
+    'first and why.\n\n' +
+    'The five-star scale is for THIS instrument and THIS song, anchored like ' +
+    'this: 1 = open chords and whole notes; 2 = power chords and simple ' +
+    'pentatonic phrases; 3 = fast alternate picking, barre chords, small ' +
+    'stretches; 4 = sweep picking, tapping, wide stretches, fast position ' +
+    'shifts; 5 = the hardest thing a guitarist plays, at the limit of the ' +
+    'instrument. Most parts of most songs are 2 or 3 - do not inflate.\n\n' +
+    'Be concrete and short: at most 120 words per part, no encouragement, no ' +
+    'restating of the question.'
+  )
+}
+
+/* ---------------------------------------------------------- song sections */
+
+export function sectionsSystemPrompt(locale: Locale): string {
+  return (
+    'You know the arrangements of recorded songs bar by bar. Answer with valid ' +
+    'JSON only: no commentary, no code fences. ' +
+    jsonDirective(locale, ['sections.name'])
+  )
+}
+
+/**
+ * The song's structure, for when the Guitar Pro file carries no markers.
+ *
+ * The bar numbers are what make the answer useful - they are what the loop
+ * buttons in the practice screen set - but a model that does not know the song
+ * well will invent them, and a made-up bar range loops over the wrong music. So
+ * bars are optional, the seconds are the fallback, and the model is told to
+ * leave a field null rather than guess it.
+ */
+export function sectionsPrompt(context: string, barCount: number | null): string {
+  const bars = barCount
+    ? `The Guitar Pro file has ${barCount} bars, numbered from 1. Every bar number must fall inside that range.`
+    : 'There is no tablature for this song, so leave every bar number null and give seconds instead.'
+
+  return (
+    `${context}\n\n` +
+    'Break this song into the parts a guitarist would practise separately - ' +
+    'intro, verse, chorus, bridge, solo, riff, breakdown, outro. Between 3 and ' +
+    '14 parts, in playing order, covering the song from start to finish with no ' +
+    'gaps.\n\n' +
+    `${bars}\n\n` +
+    'For each part give: "name" (what the player would call it, such as "Solo 1" ' +
+    'or "Refrao"), "kind" (exactly one of intro, verse, chorus, bridge, solo, ' +
+    'outro, riff, breakdown, other), "startBar" and "endBar" (1-based and ' +
+    'inclusive, or null), and "startSec" and "endSec" (seconds from the start of ' +
+    'the recording, or null).\n\n' +
+    'ACCURACY OVER COMPLETENESS. If you do not actually know where a part falls, ' +
+    'set that number to null. A null is fine; a confident wrong bar number sends ' +
+    'the practice loop to the wrong music.\n\n' +
+    'Exact format:\n' +
+    '{"sections":[{"name":"","kind":"intro","startBar":1,"endBar":8,' +
+    '"startSec":0,"endSec":19}]}'
+  )
+}
+
 export function toneAdviceSystemPrompt(locale: Locale): string {
   return (
     'You know guitar tone and multi-effects units. Answer in markdown with short ' +

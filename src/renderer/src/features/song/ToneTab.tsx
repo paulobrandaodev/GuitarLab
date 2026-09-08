@@ -13,7 +13,7 @@ import {
 } from '../../components/ui'
 import { Markdown } from '../../components/ui/markdown'
 import { IconTone, IconSparkle, IconTuner } from '../../components/ui/icons'
-import { api, isError } from '../../lib/api'
+import { api, isError, formatRelative, type InsightView } from '../../lib/api'
 import { useAiStatusLine } from '../../lib/aiActivity'
 import type {
   SongView,
@@ -368,16 +368,33 @@ export function ToneTab({ song }: { song: SongView }): ReactNode {
   const [plan, setPlan] = useState<TonePlanView | null>(null)
   const [loading, setLoading] = useState(false)
   const [savingRig, setSavingRig] = useState(false)
-  /** The prose second opinion, kept as an optional extra to the patch. */
-  const [advice, setAdvice] = useState<string | null>(null)
+  /**
+   * The prose second opinion, kept as an optional extra to the patch.
+   *
+   * Stored in the database once written, like the patch beside it, so coming
+   * back to this song shows the explanation instead of an empty card and a
+   * button that costs another request to press.
+   */
+  const [advice, setAdvice] = useState<InsightView | null>(null)
   const [adviceLoading, setAdviceLoading] = useState(false)
   /** What the model is thinking right now, mirrored under the button. */
   const aiStatus = useAiStatusLine()
 
   const load = useCallback(async () => {
-    const [savedRig, savedPlan] = await Promise.all([api.gear.rig(), api.gear.patch(song.id)])
+    /*
+     * The insight lookup is wrapped and allowed to fail on its own: a preload
+     * without the channel throws on the property access, which inside
+     * `Promise.all` would take the rig and the patch down with it. A song with
+     * no stored explanation is the normal case, so an absent one is `null`.
+     */
+    const [savedRig, savedPlan, savedAdvice] = await Promise.all([
+      api.gear.rig(),
+      api.gear.patch(song.id),
+      (async () => api.insights.get(song.id, 'tone_advice'))().catch(() => null)
+    ])
     setRig(savedRig)
     setPlan(savedPlan)
+    setAdvice(savedAdvice)
   }, [song.id])
 
   useEffect(() => {
@@ -424,7 +441,14 @@ export function ToneTab({ song }: { song: SongView }): ReactNode {
     try {
       const res = await api.llm.toneAdvice(song.id)
       if (isError(res)) show(res.error, 'danger')
-      else setAdvice(res.content)
+      else {
+        setAdvice({
+          content: res.content,
+          provider: res.provider,
+          model: res.model,
+          createdAt: Math.floor(Date.now() / 1000)
+        })
+      }
     } catch (err) {
       show(err instanceof Error ? err.message : 'Falha ao consultar a IA', 'danger')
     } finally {
@@ -515,24 +539,41 @@ export function ToneTab({ song }: { song: SongView }): ReactNode {
 
       {/* prose fallback for the nuances a patch diagram cannot carry */}
       <NeuCard className="p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div className="micro-label">Explicação em texto</div>
-          <NeuButton onClick={askAdvice} disabled={adviceLoading}>
-            <span className="flex items-center gap-2">
-              {adviceLoading ? <Spinner size={14} /> : <IconTone width={15} height={15} />}
-              {advice ? 'Atualizar' : 'Explicar'}
-            </span>
-          </NeuButton>
+          <div className="flex items-center gap-3">
+            {advice && (
+              <span className="text-txt-micro text-[10px]">
+                {formatRelative(advice.createdAt)}
+                {advice.provider ? ` · ${advice.provider}` : ''}
+              </span>
+            )}
+            <NeuButton
+              onClick={askAdvice}
+              disabled={adviceLoading}
+              title={
+                advice
+                  ? 'Consulta a IA de novo e substitui a explicação salva'
+                  : 'Consulta a IA e guarda a explicação'
+              }
+            >
+              <span className="flex items-center gap-2">
+                {adviceLoading ? <Spinner size={14} /> : <IconTone width={15} height={15} />}
+                {advice ? 'Explicar de novo' : 'Explicar'}
+              </span>
+            </NeuButton>
+          </div>
         </div>
 
         {adviceLoading && aiStatus && (
           <p className="text-txt-micro mb-2 line-clamp-2 text-[11px] italic">{aiStatus}</p>
         )}
         {advice ? (
-          <Markdown content={advice} />
+          <Markdown content={advice.content} />
         ) : (
           <p className="text-txt-micro text-[11px]">
-            Um texto corrido sobre o timbre, para quando você quiser o porquê de cada ajuste.
+            Um texto corrido sobre o timbre, para quando você quiser o porquê de cada ajuste. Fica
+            salvo depois da primeira busca.
           </p>
         )}
       </NeuCard>

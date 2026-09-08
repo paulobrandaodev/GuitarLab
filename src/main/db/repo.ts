@@ -233,6 +233,33 @@ export function updateSection(id: number, patch: Partial<typeof schema.songSecti
   getDb().update(schema.songSections).set(patch).where(eq(schema.songSections.id, id)).run()
 }
 
+/**
+ * Swap a song's whole section list for a new one, in one transaction.
+ *
+ * Sections are what the practice loop, the per-trecho progress and the study
+ * queue hang off, so this deletes rows that other tables point at — the
+ * cascades take the progress and the queue pins with them. That is the intended
+ * behaviour (the old trechos no longer exist) but it is destructive enough that
+ * the screen asks before calling it.
+ */
+export function replaceSections(
+  songId: number,
+  sections: Array<Omit<typeof schema.songSections.$inferInsert, 'songId' | 'position'>>
+): SectionView[] {
+  const sqlite = getSqlite()
+  const tx = sqlite.transaction(() => {
+    getDb().delete(schema.songSections).where(eq(schema.songSections.songId, songId)).run()
+    sections.forEach((values, position) => {
+      getDb()
+        .insert(schema.songSections)
+        .values({ ...values, songId, position })
+        .run()
+    })
+  })
+  tx()
+  return listSections(songId)
+}
+
 export function deleteSection(id: number): void {
   getDb().delete(schema.songSections).where(eq(schema.songSections.id, id)).run()
 }
@@ -858,6 +885,72 @@ export function listTunings(): TuningView[] {
 }
 
 /* -------------------------------------------------------------- insights */
+
+/**
+ * The AI answers, kept so the same question is not paid for twice.
+ *
+ * Asking the model costs a request, a quota slice and fifteen seconds of
+ * waiting, and the answer does not change between one opening of the screen and
+ * the next — so it is written down and read back. Everything that asks for one
+ * offers a "gerar de novo" button, which is what a real refresh goes through.
+ *
+ * One row per (song, kind, section): a second answer replaces the first rather
+ * than piling up history nobody reads.
+ */
+export type InsightKind =
+  | 'practice_plan'
+  | 'technique_breakdown'
+  | 'tone_advice'
+  | 'structure_summary'
+  | 'daily_plan'
+
+export interface InsightView {
+  content: string
+  provider: string | null
+  model: string | null
+  createdAt: number
+}
+
+export function getInsight(
+  songId: number,
+  kind: InsightKind,
+  sectionId: number | null = null
+): InsightView | null {
+  const row = getSqlite()
+    .prepare(
+      `SELECT content_md AS content, provider, model, created_at AS createdAt
+         FROM llm_insights
+        WHERE song_id = ? AND kind = ? AND section_id IS ?
+        ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(songId, kind, sectionId) as InsightView | undefined
+  return row ?? null
+}
+
+export function saveInsight(input: {
+  songId: number
+  kind: InsightKind
+  sectionId?: number | null
+  content: string
+  provider: string | null
+  model: string | null
+}): void {
+  const sqlite = getSqlite()
+  const sectionId = input.sectionId ?? null
+  const tx = sqlite.transaction(() => {
+    sqlite
+      .prepare('DELETE FROM llm_insights WHERE song_id = ? AND kind = ? AND section_id IS ?')
+      .run(input.songId, input.kind, sectionId)
+    sqlite
+      .prepare(
+        `INSERT INTO llm_insights (song_id, kind, section_id, content_md, provider, model)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .run(input.songId, input.kind, sectionId, input.content, input.provider, input.model)
+  })
+  tx()
+}
+
 
 export function statsOverview() {
   const sqlite = getSqlite()

@@ -29,7 +29,7 @@ import { Markdown } from '../../components/ui/markdown'
 import { AlphaTabView, type AlphaTabHandle, type AlphaTabTrack } from './AlphaTabView'
 import { SpeedTrainer } from './SpeedTrainer'
 import { MultitrackPlayer } from './MultitrackPlayer'
-import { api, isError, formatDuration } from '../../lib/api'
+import { api, isError, formatDuration, formatRelative, type InsightView } from '../../lib/api'
 import { useNav } from '../../App'
 import type { SongView, SectionView, Instrument, MediaAssetView } from '@shared/types'
 import { useStrings } from '../../lib/i18n'
@@ -134,7 +134,7 @@ export function PracticeScreen({
   const [position, setPosition] = useState({ currentTime: 0, endTime: 0 })
   const [barCount, setBarCount] = useState(0)
   const [showTrainer, setShowTrainer] = useState(false)
-  const [insight, setInsight] = useState<string | null>(null)
+  const [insight, setInsight] = useState<InsightView | null>(null)
   const [insightLoading, setInsightLoading] = useState(false)
 
   const sessionStart = useRef<number>(Date.now())
@@ -261,14 +261,50 @@ export function PracticeScreen({
     )
   }
 
+  /*
+   * The tips are written down when they arrive, so opening this song again
+   * shows them without spending a request. Changing the selected trecho asks
+   * for that trecho's own stored answer — the breakdown of the solo is not the
+   * breakdown of the intro — and finding none simply leaves the button offering
+   * to fetch one.
+   */
+  useEffect(() => {
+    if (!songId) return
+    let alive = true
+    setInsight(null)
+    /*
+     * Called through a lambda rather than reached into directly: a preload that
+     * is missing this channel — the test harnesses supply a partial bridge, and
+     * so would a preload that failed halfway — throws on the property access
+     * itself, before there is a promise to catch it, and takes the screen down
+     * with it. Inside the lambda the same failure is a rejection.
+     */
+    void (async () => api.insights.get(songId, 'technique_breakdown', activeSection))()
+      .then((saved) => {
+        if (alive) setInsight(saved)
+      })
+      .catch(() => {
+        /* an empty cache is the normal case, not an error worth a toast */
+      })
+    return () => {
+      alive = false
+    }
+  }, [songId, activeSection])
+
   const askInsight = async (): Promise<void> => {
     if (!songId) return
     setInsightLoading(true)
-    setInsight(null)
     try {
       const res = await api.llm.techniqueBreakdown(songId, activeSection)
       if (isError(res)) show(res.error, 'danger')
-      else setInsight(res.content)
+      else {
+        setInsight({
+          content: res.content,
+          provider: res.provider,
+          model: res.model,
+          createdAt: Math.floor(Date.now() / 1000)
+        })
+      }
     } catch (err) {
       show(err instanceof Error ? err.message : 'Falha ao consultar a IA', 'danger')
     } finally {
@@ -370,7 +406,7 @@ export function PracticeScreen({
                 <EmptyState
                   icon={<IconPractice width={26} height={26} />}
                   title="Sem arquivo Guitar Pro"
-                  description="Essa música não tem tablatura importada. Coloque um .gp/.gp3/.gp4/.gp5 na pasta gptabs/ e importe de novo."
+                  description="Essa música não tem tablatura importada. Coloque um .gp/.gp3/.gp4/.gp5/.gtp na pasta gptabs/ e importe de novo."
                 />
               ))}
 
@@ -414,10 +450,19 @@ export function PracticeScreen({
           </NeuCard>
         </div>
 
-        {/* right rail */}
-        <aside className="scroll-area hidden w-64 shrink-0 space-y-3 lg:block">
+        {/*
+          Right rail.
+
+          A flex column rather than a stack of blocks, because the tips card at
+          the bottom is told to take whatever height is left. Under Stems there
+          is a lot of it — the transport below is hidden and the track list is
+          not drawn — and a short card floating halfway up a tall column with
+          the waveform running past it looked like a rendering fault. It now
+          ends level with the stem player beside it.
+        */}
+        <aside className="hidden w-64 shrink-0 flex-col gap-3 lg:flex">
           {sections.length > 0 && (
-            <NeuCard className="p-3.5">
+            <NeuCard className="shrink-0 p-3.5">
               <div className="micro-label mb-2.5">Trechos</div>
               <div className="flex flex-wrap gap-1.5">
                 <button
@@ -447,9 +492,14 @@ export function PracticeScreen({
           )}
 
           {tracks.length > 0 && source === 'gp_synth' && (
-            <NeuCard className="p-3.5">
+            <NeuCard className="shrink-0 p-3.5">
               <div className="micro-label mb-2.5">Trilhas</div>
-              <div className="space-y-1.5">
+              {/*
+                Capped and scrolling rather than as tall as the arrangement: a
+                five-guitar score would otherwise push the tips card below it
+                clean off the bottom of the column.
+              */}
+              <div className="scroll-area max-h-48 space-y-1.5">
                 {tracks
                   .filter((t) => t.instrument !== null)
                   .map((t) => (
@@ -500,18 +550,58 @@ export function PracticeScreen({
             </NeuCard>
           )}
 
-          <NeuCard className="p-3.5">
-            <button
-              onClick={askInsight}
-              disabled={insightLoading}
-              className="gradient-text flex w-full items-center gap-2 text-xs font-semibold disabled:opacity-50"
-            >
-              {insightLoading ? <Spinner size={14} /> : <IconSparkle width={15} height={15} />}
-              Dicas para esta música
-            </button>
-            {insight && (
-              <div className="scroll-area mt-3 max-h-72">
-                <Markdown content={insight} className="text-txt-dim space-y-2 text-[11px]" />
+          <NeuCard className="flex min-h-[190px] flex-1 flex-col p-3.5">
+            <div className="flex shrink-0 items-center gap-2">
+              <IconSparkle width={15} height={15} className="text-accent-2 shrink-0" />
+              <span className="gradient-text flex-1 text-xs font-semibold">
+                Dicas para esta música
+              </span>
+              {insightLoading && <Spinner size={14} />}
+            </div>
+
+            {insight ? (
+              <>
+                <div className="scroll-area ring-room mt-3 min-h-0 flex-1">
+                  <Markdown
+                    content={insight.content}
+                    className="text-txt-dim space-y-2 text-[11px]"
+                  />
+                </div>
+                {/*
+                  The answer is stored, so the button is a re-run and says so —
+                  and it says when the one on screen was written, which is the
+                  only way to tell a fresh answer from one from three months ago.
+                */}
+                <div className="mt-3 flex shrink-0 items-center justify-between gap-2">
+                  <span className="text-txt-micro text-[10px]">
+                    {formatRelative(insight.createdAt)}
+                    {insight.provider ? ` · ${insight.provider}` : ''}
+                  </span>
+                  <button
+                    onClick={askInsight}
+                    disabled={insightLoading}
+                    className="neu-press text-txt-dim hover:text-txt shrink-0 rounded-[11px] px-2.5 py-1 text-[10px] font-semibold disabled:opacity-50"
+                    title="Consulta a IA de novo e substitui as dicas salvas"
+                  >
+                    Buscar de novo
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="mt-3 flex min-h-0 flex-1 flex-col justify-between gap-3">
+                <p className="text-txt-micro text-[11px] leading-snug">
+                  Uma explicação parte por parte: o que cada trecho exige, a dificuldade de 1 a 5
+                  estrelas e um exercício com BPM para cada um. Fica salvo depois da primeira
+                  busca.
+                </p>
+                <NeuButton
+                  variant="accent"
+                  onClick={askInsight}
+                  disabled={insightLoading}
+                  className="shrink-0 !py-2 !text-[11px]"
+                >
+                  {insightLoading ? 'Consultando…' : 'Buscar dicas'}
+                </NeuButton>
               </div>
             )}
           </NeuCard>

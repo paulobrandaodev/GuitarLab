@@ -15,6 +15,7 @@ import { probeProvider } from '../services/llm/probe'
 import {
   asEnum,
   asHttpUrl,
+  asId,
   asOptionalNumber,
   asOptionalString,
   asString,
@@ -51,6 +52,9 @@ import {
 import {
   classifyVideosSystemPrompt,
   practicePlanSystemPrompt,
+  sectionsPrompt,
+  sectionsSystemPrompt,
+  techniquePrompt,
   techniqueSystemPrompt,
   toChordProSystemPrompt,
   toneAdviceSystemPrompt,
@@ -63,6 +67,7 @@ import { ffmpegVersion } from '../media/ffmpeg'
 import { nextLadderBpm } from '../practice/srs'
 import type {
   ArchiveCandidate,
+  SectionKind,
   DownloadProgress,
   IntegrationStatus,
   Instrument,
@@ -118,6 +123,92 @@ function streamTo(
       if (win && !win.isDestroyed()) win.webContents.send('llm:progress', event)
     }
   }
+}
+
+/** The section kinds the database accepts; anything else lands on `other`. */
+const SECTION_KINDS: readonly SectionKind[] = [
+  'intro',
+  'verse',
+  'chorus',
+  'bridge',
+  'solo',
+  'outro',
+  'riff',
+  'breakdown',
+  'other'
+]
+
+/**
+ * Reshape whatever the model returned into rows the sections table will accept.
+ *
+ * Nothing here trusts the answer. Bars outside the score would send the loop
+ * past the end of the piece, an end before its own start would make a loop of
+ * negative length, and seconds past the end of the recording would put a marker
+ * where there is no audio — so each is clamped or dropped on its own, and a
+ * part whose numbers are all unusable still survives as a named section. That
+ * is deliberate: a name with no range is still a row the user can edit, while a
+ * bad range is a loop that plays the wrong music.
+ */
+function normalizeAiSections(
+  rows: unknown[],
+  barCount: number | null,
+  durationMs: number | null
+): Array<{
+  name: string
+  kind: SectionKind
+  startBar: number | null
+  endBar: number | null
+  startMs: number | null
+  endMs: number | null
+  source: 'ai'
+}> {
+  const maxBar = barCount ? barCount - 1 : null
+  const maxMs = durationMs && durationMs > 0 ? durationMs : null
+
+  const bar = (value: unknown): number | null => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return null
+    // the model answers in 1-based bars, the database stores 0-based
+    const zero = Math.round(value) - 1
+    if (zero < 0) return null
+    if (maxBar === null) return zero
+    return zero > maxBar ? maxBar : zero
+  }
+  const ms = (value: unknown): number | null => {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null
+    const millis = Math.round(value * 1000)
+    if (maxMs === null) return millis
+    return millis > maxMs ? maxMs : millis
+  }
+
+  const out: ReturnType<typeof normalizeAiSections> = []
+  for (const raw of rows.slice(0, 24)) {
+    if (!raw || typeof raw !== 'object') continue
+    const row = raw as Record<string, unknown>
+    const name = typeof row.name === 'string' ? row.name.trim().slice(0, 80) : ''
+    if (!name) continue
+
+    const kindRaw = typeof row.kind === 'string' ? row.kind.toLowerCase().trim() : ''
+    const kind = (SECTION_KINDS as readonly string[]).includes(kindRaw)
+      ? (kindRaw as SectionKind)
+      : 'other'
+
+    let startBar = bar(row.startBar)
+    let endBar = bar(row.endBar)
+    if (startBar !== null && endBar !== null && endBar < startBar) {
+      startBar = null
+      endBar = null
+    }
+
+    let startMs = ms(row.startSec)
+    let endMs = ms(row.endSec)
+    if (startMs !== null && endMs !== null && endMs <= startMs) {
+      startMs = null
+      endMs = null
+    }
+
+    out.push({ name, kind, startBar, endBar, startMs, endMs, source: 'ai' })
+  }
+  return out
 }
 
 export function registerIpc(getWindow: () => BrowserWindow | null): void {
@@ -444,7 +535,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     const picked = await dialog.showOpenDialog(win, {
       title: 'Escolher arquivo Guitar Pro',
       properties: ['openFile'],
-      filters: [{ name: 'Guitar Pro', extensions: ['gp', 'gp3', 'gp4', 'gp5', 'gpx', 'gp7'] }]
+      filters: [{ name: 'Guitar Pro', extensions: ['gp', 'gp3', 'gp4', 'gp5', 'gpx', 'gp7', 'gtp'] }]
     })
     if (picked.canceled || !picked.filePaths[0]) return { canceled: true }
 
@@ -637,6 +728,28 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     return { content: result.text, provider: result.provider, model: result.model }
   })
 
+  /**
+   * The answers already paid for, read straight from the database.
+   *
+   * Every AI answer in the app is cached, and this is how a screen shows the one
+   * it already has without spending a request to find out that it has one. The
+   * "gerar de novo" buttons go to the `llm:` handlers instead, which always ask
+   * the model and overwrite what is stored.
+   */
+  handle('insights:get', (songId: unknown, kind: unknown, sectionId?: unknown) =>
+    repo.getInsight(
+      asId(songId, 'songId'),
+      asEnum(kind, 'kind', [
+        'practice_plan',
+        'technique_breakdown',
+        'tone_advice',
+        'structure_summary',
+        'daily_plan'
+      ] as const),
+      asOptionalNumber(sectionId, 'sectionId')
+    )
+  )
+
   handle('llm:techniqueBreakdown', async (songId: number, sectionId: number | null) => {
     const song = repo.getSong(songId)
     if (!song) return { error: 'Música não encontrada' }
@@ -651,26 +764,93 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       song.bpm ? `Andamento: ${song.bpm} BPM` : null,
       song.tuning ? `Afinação: ${song.tuning.name} (${song.tuning.strings.join(' ')})` : null,
       song.timeSignature ? `Compasso: ${song.timeSignature}` : null,
-      section ? `Trecho: ${section.name} (${section.kind})` : 'Música inteira',
+      /*
+       * The section list is what lets the answer be split by the same names the
+       * loop buttons carry, instead of by parts the model invents for itself.
+       */
+      sections.length
+        ? `Trechos desta música, em ordem: ${sections
+            .map((sec) => `${sec.name} (${sec.kind})`)
+            .join(', ')}`
+        : null,
       gp ? `Trilhas no Guitar Pro: ${JSON.stringify(gp.meta?.tracks ?? []).slice(0, 500)}` : null
     ]
       .filter(Boolean)
       .join('\n')
 
-    const result = await complete([
-      {
-        role: 'system',
-        content: techniqueSystemPrompt(mainLocale())
-      },
-      {
-        role: 'user',
-        content:
-          `${context}\n\nExplique: (1) quais dificuldades técnicas específicas esse trecho ` +
-          'apresenta, (2) dois exercícios concretos para destravar cada uma, (3) em que BPM começar ' +
-          'e como subir. Máximo 300 palavras.'
-      }
-    ], streamTo(getWindow, 'análise de técnica'))
+    const result = await complete(
+      [
+        { role: 'system', content: techniqueSystemPrompt(mainLocale()) },
+        {
+          role: 'user',
+          content: techniquePrompt(
+            context,
+            section ? `the section "${section.name}" (${section.kind})` : null
+          )
+        }
+      ],
+      streamTo(getWindow, 'análise de técnica')
+    )
+
+    repo.saveInsight({
+      songId,
+      kind: 'technique_breakdown',
+      sectionId,
+      content: result.text,
+      provider: result.provider,
+      model: result.model
+    })
     return { content: result.text, provider: result.provider, model: result.model }
+  })
+
+  /**
+   * The song's structure, for when the Guitar Pro file did not bring one.
+   *
+   * A file without markers leaves the practice screen with no loop buttons and
+   * the progress panel with a single whole-song row, which is the least useful
+   * shape either of them has. This asks the model for the parts and writes them
+   * as real sections, so everything downstream — loops, per-trecho progress, the
+   * study queue — behaves exactly as it would with markers from the file.
+   */
+  handle('llm:sections', async (rawSongId: unknown) => {
+    const songId = asId(rawSongId, 'songId')
+    const song = repo.getSong(songId)
+    if (!song) return { error: 'Música não encontrada' }
+
+    const media = repo.listMedia(songId)
+    const gp = media.find((m) => m.kind === 'guitarpro')
+    const rawBars = gp?.meta?.barCount
+    const barCount = typeof rawBars === 'number' && rawBars > 0 ? rawBars : null
+
+    const context = [
+      `Música: ${song.title}${song.artist ? ` — ${song.artist}` : ''}`,
+      song.album ? `Álbum: ${song.album}` : null,
+      song.year ? `Ano: ${song.year}` : null,
+      song.musicalKey ? `Tom: ${song.musicalKey}` : null,
+      song.bpm ? `Andamento: ${Math.round(song.bpm)} BPM` : null,
+      song.timeSignature ? `Compasso: ${song.timeSignature}` : null,
+      song.durationMs ? `Duração: ${Math.round(song.durationMs / 1000)} segundos` : null,
+      song.tuning ? `Afinação: ${song.tuning.name}` : null
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+    const result = await complete(
+      [
+        { role: 'system', content: sectionsSystemPrompt(mainLocale()) },
+        { role: 'user', content: sectionsPrompt(context, barCount) }
+      ],
+      { json: true, ...streamTo(getWindow, 'estrutura da música') }
+    )
+
+    const parsed = parseJsonLoose<{ sections?: unknown }>(result.text)
+    const rows = Array.isArray(parsed?.sections) ? (parsed.sections as unknown[]) : []
+    const clean = normalizeAiSections(rows, barCount, song.durationMs)
+    if (!clean.length) {
+      return { error: 'A IA não devolveu nenhuma seção utilizável — tente de novo.' }
+    }
+
+    return { sections: repo.replaceSections(songId, clean) }
   })
 
   /* ---------------------------------------------------------------- rig */
@@ -814,6 +994,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       ],
       streamTo(getWindow, 'explicação de timbre')
     )
+    repo.saveInsight({
+      songId,
+      kind: 'tone_advice',
+      content: result.text,
+      provider: result.provider,
+      model: result.model
+    })
     return { content: result.text, provider: result.provider, model: result.model }
   })
 

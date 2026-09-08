@@ -231,6 +231,7 @@ CREATE TABLE IF NOT EXISTS llm_insights (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   song_id INTEGER REFERENCES songs(id) ON DELETE CASCADE,
   kind TEXT NOT NULL,
+  section_id INTEGER REFERENCES song_sections(id) ON DELETE CASCADE,
   content_md TEXT NOT NULL,
   model TEXT,
   provider TEXT,
@@ -323,7 +324,9 @@ function addMissingColumns(sqlite: Database.Database): void {
 
   const additions: Array<[string, string, string]> = [
     ['setlists', 'band', 'TEXT'],
-    ['setlists', 'spotify_playlist_id', 'TEXT']
+    ['setlists', 'spotify_playlist_id', 'TEXT'],
+    // the AI answers are cached per song *and* per section now
+    ['llm_insights', 'section_id', 'INTEGER']
   ]
   for (const [table, column, type] of additions) {
     if (info(table).has(column)) continue

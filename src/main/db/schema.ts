@@ -87,7 +87,7 @@ export const songSections = sqliteTable(
     startBar: integer('start_bar'),
     endBar: integer('end_bar'),
     color: text('color'),
-    source: text('source', { enum: ['gp', 'analysis', 'manual'] })
+    source: text('source', { enum: ['gp', 'analysis', 'manual', 'ai'] })
       .notNull()
       .default('manual')
   },
@@ -369,6 +369,13 @@ export const llmInsights = sqliteTable(
         'daily_plan'
       ]
     }).notNull(),
+    /**
+     * Which part of the song the answer is about; NULL means the whole song.
+     *
+     * A technique breakdown is asked per section, so without this the cache
+     * would hand the answer for the solo back to someone who opened the intro.
+     */
+    sectionId: integer('section_id').references(() => songSections.id, { onDelete: 'cascade' }),
     contentMd: text('content_md').notNull(),
     model: text('model'),
     provider: text('provider'),
@@ -407,3 +414,4 @@ export type Setlist = typeof setlists.$inferSelect
 export type Chart = typeof charts.$inferSelect
 export type GearPatch = typeof gearPatches.$inferSelect
 export type PracticeQueueRow = typeof practiceQueue.$inferSelect
+export type LlmInsight = typeof llmInsights.$inferSelect

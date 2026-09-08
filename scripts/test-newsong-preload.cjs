@@ -214,6 +214,8 @@ contextBridge.exposeInMainWorld('api', {
     onReady: unsubscribe
   },
   gear: { rig: none, setRig: none, patch: none },
+  // cached AI answers: nothing stored, which is the state a fresh song is in
+  insights: { get: none },
   llm: {
     onProgress: unsubscribe,
     status: async () => ({ provider: '', fallback: '', configured: false, detail: '' }),

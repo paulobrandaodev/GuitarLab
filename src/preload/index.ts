@@ -209,6 +209,11 @@ const api = {
     setRig: (rig: unknown) => invoke('gear:setRig', rig),
     patch: (songId: number) => invoke('gear:patch', songId)
   },
+  /** The AI answers already stored for a song, read without asking the model. */
+  insights: {
+    get: (songId: number, kind: string, sectionId?: number | null) =>
+      invoke('insights:get', songId, kind, sectionId ?? null)
+  },
   llm: {
     status: () => invoke('llm:status'),
     /**
@@ -224,6 +229,7 @@ const api = {
     techniqueBreakdown: (songId: number, sectionId: number | null) =>
       invoke('llm:techniqueBreakdown', songId, sectionId),
     toneAdvice: (songId: number) => invoke('llm:toneAdvice', songId),
+    sections: (songId: number) => invoke('llm:sections', songId),
     tonePatch: (songId: number) => invoke('llm:tonePatch', songId),
     classifyVideos: (videos: unknown[]) => invoke('llm:classifyVideos', videos),
     toChordPro: (songId: number, rawText: string) => invoke('llm:toChordPro', songId, rawText)
