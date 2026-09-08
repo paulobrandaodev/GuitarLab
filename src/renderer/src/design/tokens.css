@@ -247,6 +247,27 @@ select:focus-visible,
   -webkit-app-region: no-drag;
 }
 
+/*
+  Room for the minimise/maximise/close buttons.
+
+  The window is created with `titleBarStyle: 'hidden'` and a `titleBarOverlay`,
+  which means Chromium draws those three buttons *on top of* the page's own
+  top-right corner — 137px of it on Windows — and tells the page how much room
+  they take through the Window Controls Overlay environment variables. Anything
+  the app puts in that strip and does not step around ends up underneath them,
+  which is where the stage-mode controls were.
+
+  Both sides are reserved because the buttons are not always on the right: macOS
+  puts its traffic lights on the left, and there `titlebar-area-x` is the offset
+  rather than zero. Where the variables are not exposed at all both paddings
+  fall back to zero — the layout this had before, and no stray gap on a
+  platform that draws no overlay.
+*/
+.window-controls-room {
+  padding-left: env(titlebar-area-x, 0px);
+  padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+}
+
 @keyframes spin-slow {
   to {
     transform: rotate(360deg);

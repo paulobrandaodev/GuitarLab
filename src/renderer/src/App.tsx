@@ -90,7 +90,8 @@ const NAV_ITEMS: Array<{ name: Route['name']; icon: typeof IconSetlist; title: s
 function TitleBar({ onBack, canBack }: { onBack: () => void; canBack: boolean }): ReactNode {
   const go = useNav((s) => s.go)
   return (
-    <header className="drag-region flex h-11 shrink-0 items-center justify-between px-4">
+    /* the right-hand icons sit exactly where the OS draws the window buttons */
+    <header className="drag-region window-controls-room flex h-11 shrink-0 items-center justify-between px-4">
       <div className="no-drag flex items-center gap-2">
         {canBack && (
           <IconButton size={32} title="Voltar" onClick={onBack}>
