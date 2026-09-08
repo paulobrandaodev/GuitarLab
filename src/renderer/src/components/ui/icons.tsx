@@ -141,6 +141,13 @@ export const IconTuner = (p: SVGProps<SVGSVGElement>): ReactNode => (
   </Svg>
 )
 
+export const IconPencil = (p: SVGProps<SVGSVGElement>): ReactNode => (
+  <Svg {...p}>
+    <path d="M4 20h4L19 9a2.5 2.5 0 0 0-3.5-3.5L4.5 16.5 4 20Z" />
+    <path d="M14.5 6.5 17.5 9.5" />
+  </Svg>
+)
+
 export const IconStage = (p: SVGProps<SVGSVGElement>): ReactNode => (
   <Svg {...p}>
     <path d="M3 9h18M4.5 9 7 3.5h10L19.5 9M5 9v11h14V9" />

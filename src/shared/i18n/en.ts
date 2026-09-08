@@ -254,7 +254,14 @@ export const en: Catalog = {
     upNext: 'up next',
     lastOfSet: 'last of the set',
     switchTo: (tuning: string) => `switch to ${tuning}`,
-    help: '←/→ or a pedal changes song · ↑/↓ and space scroll the chart · +/− size · L set · Esc exits'
+    scrollPlay: 'Scroll on its own (A)',
+    scrollPause: 'Stop scrolling (A)',
+    scrollSpeed: 'scroll speed',
+    metronome: 'Metronome',
+    metronomeBpm: (bpm: number) => `Metronome · ${bpm} bpm`,
+    metronomeHint: "Click at this song's tempo (M)",
+    metronomeNoBpm: 'This song has no BPM on file',
+    help: '←/→ or a pedal changes song · ↑/↓ and space scroll the chart · A auto-scroll · M metronome · +/− size · L set · Esc exits'
   },
 
   setlist: {
@@ -268,6 +275,8 @@ export const en: Catalog = {
 
   manual: {
     newSetlist: 'New setlist',
+    renameSetlist: 'Edit the setlist',
+    setlistRenamed: (name: string) => `Setlist renamed to "${name}"`,
     newSong: 'New song',
     addSong: 'Add song',
     required: 'required',

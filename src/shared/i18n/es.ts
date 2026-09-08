@@ -255,7 +255,14 @@ export const es: Catalog = {
     upNext: 'a continuación',
     lastOfSet: 'última del set',
     switchTo: (tuning: string) => `cambiar a ${tuning}`,
-    help: '←/→ o el pedal cambia de canción · ↑/↓ y espacio desplazan el cifrado · +/− tamaño · L repertorio · Esc sale'
+    scrollPlay: 'Desplazar solo (A)',
+    scrollPause: 'Detener el desplazamiento (A)',
+    scrollSpeed: 'velocidad del desplazamiento',
+    metronome: 'Metrónomo',
+    metronomeBpm: (bpm: number) => `Metrónomo · ${bpm} bpm`,
+    metronomeHint: 'Clic al tempo de esta canción (M)',
+    metronomeNoBpm: 'Esta canción no tiene BPM guardado',
+    help: '←/→ o el pedal cambia de canción · ↑/↓ y espacio desplazan el cifrado · A desplazamiento automático · M metrónomo · +/− tamaño · L repertorio · Esc sale'
   },
 
   setlist: {
@@ -269,6 +276,8 @@ export const es: Catalog = {
 
   manual: {
     newSetlist: 'Nuevo setlist',
+    renameSetlist: 'Editar el setlist',
+    setlistRenamed: (name: string) => `Setlist renombrado a "${name}"`,
     newSong: 'Nueva canción',
     addSong: 'Agregar canción',
     required: 'obligatorio',

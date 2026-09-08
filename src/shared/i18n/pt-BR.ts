@@ -279,7 +279,14 @@ export const ptBR = {
     upNext: 'a seguir',
     lastOfSet: 'última do set',
     switchTo: (tuning: string) => `trocar para ${tuning}`,
-    help: '←/→ ou pedal troca de música · ↑/↓ e espaço rolam a cifra · +/− tamanho · L repertório · Esc sai'
+    scrollPlay: 'Rolar sozinho (A)',
+    scrollPause: 'Parar a rolagem (A)',
+    scrollSpeed: 'velocidade da rolagem',
+    metronome: 'Metrônomo',
+    metronomeBpm: (bpm: number) => `Metrônomo · ${bpm} bpm`,
+    metronomeHint: 'Clique no andamento desta música (M)',
+    metronomeNoBpm: 'Esta música não tem BPM cadastrado',
+    help: '←/→ ou pedal troca de música · ↑/↓ e espaço rolam a cifra · A rolagem automática · M metrônomo · +/− tamanho · L repertório · Esc sai'
   },
 
   setlist: {
@@ -301,6 +308,8 @@ export const ptBR = {
    */
   manual: {
     newSetlist: 'Novo setlist',
+    renameSetlist: 'Editar o setlist',
+    setlistRenamed: (name: string) => `Setlist renomeado para "${name}"`,
     newSong: 'Nova música',
     addSong: 'Adicionar música',
     required: 'obrigatório',

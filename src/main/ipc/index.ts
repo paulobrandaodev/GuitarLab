@@ -320,9 +320,25 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   )
   handle('setlists:setActive', (id: number) => repo.setActiveSetlist(id))
   handle('setlists:delete', (id: number) => repo.deleteSetlist(id))
-  handle('setlists:update', (id: number, patch: Record<string, unknown>) =>
-    repo.updateSetlist(id, patch)
-  )
+  /**
+   * A setlist edit, with the two fields a form can send validated.
+   *
+   * The rest of the patch is passed through as it always was — those callers
+   * are the app's own code moving its own data. `name` and `band` are typed by
+   * a person now, and an empty name leaves a setlist that is unreachable in
+   * every list that sorts by it, which is exactly the failure the create
+   * handler already guards against.
+   */
+  handle('setlists:update', (id: number, patch: Record<string, unknown>) => {
+    const next = { ...patch }
+    if ('name' in next) {
+      const name = asString(next.name, 'name', 200).trim()
+      if (!name) throw new Error(mt().errors.setlistNameRequired)
+      next.name = name
+    }
+    if ('band' in next) next.band = asOptionalString(next.band, 'band', 120)
+    return repo.updateSetlist(id, next)
+  })
 
   /* ------------------------------------------------------------ progress */
 

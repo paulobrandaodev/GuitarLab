@@ -22,6 +22,7 @@ import {
   IconGrip,
   IconPlus,
   IconTrash,
+  IconPencil,
   IconDownload,
   IconWave,
   INSTRUMENT_ICON
@@ -31,7 +32,8 @@ import {
   ImportPlaylistDialog,
   ConfirmDialog,
   NewSetlistDialog,
-  NewSongDialog
+  NewSongDialog,
+  RenameSetlistDialog
 } from './SetlistDialogs'
 import { SourcesDialog } from './SourcesDialog'
 import { api, formatDuration, formatTotalDuration, formatRelative } from '../../lib/api'
@@ -418,6 +420,7 @@ export function SetlistScreen(): ReactNode {
   const [sourcesSong, setSourcesSong] = useState<SongView | null>(null)
   /** Setlist queued for deletion, waiting on the confirmation. */
   const [deleting, setDeleting] = useState<SetlistView | null>(null)
+  const [renaming, setRenaming] = useState<SetlistView | null>(null)
 
   const refresh = useCallback(async () => {
     const lists = await api.setlists.list()
@@ -571,13 +574,23 @@ export function SetlistScreen(): ReactNode {
         <div className="mt-5 flex items-center gap-2">
           <h1 className="text-2xl font-bold">{active?.name ?? 'Sem setlist'}</h1>
           {active && (
-            <button
-              onClick={() => setDeleting(active)}
-              title="Excluir este setlist"
-              className="neu-press text-txt-dim hover:text-danger grid h-8 w-8 place-items-center rounded-[10px]"
-            >
-              <IconTrash width={15} height={15} />
-            </button>
+            <>
+              <button
+                onClick={() => setRenaming(active)}
+                title={str.manual.renameSetlist}
+                aria-label={str.manual.renameSetlist}
+                className="neu-press text-txt-dim hover:text-accent-2 grid h-8 w-8 place-items-center rounded-[10px]"
+              >
+                <IconPencil width={15} height={15} />
+              </button>
+              <button
+                onClick={() => setDeleting(active)}
+                title="Excluir este setlist"
+                className="neu-press text-txt-dim hover:text-danger grid h-8 w-8 place-items-center rounded-[10px]"
+              >
+                <IconTrash width={15} height={15} />
+              </button>
+            </>
           )}
         </div>
         {active?.band && <Badge tone="accent">{active.band}</Badge>}
@@ -890,6 +903,19 @@ export function SetlistScreen(): ReactNode {
           }
           onConfirm={() => deleteSetlist(deleting)}
           onClose={() => setDeleting(null)}
+        />
+      )}
+
+      {renaming && (
+        <RenameSetlistDialog
+          setlist={renaming}
+          bands={bands}
+          onSave={async (patch) => {
+            await api.setlists.update(renaming.id, patch)
+            await refresh()
+            show(str.manual.setlistRenamed(patch.name), 'ok')
+          }}
+          onClose={() => setRenaming(null)}
         />
       )}
 

@@ -127,6 +127,99 @@ function optionalNumber(value: string): number | null {
 }
 
 /**
+ * Renaming a setlist, and moving it between bands.
+ *
+ * Deliberately just those two fields. The date, the venue and the notes are
+ * things a setlist acquires once and then leaves alone; the name is what is
+ * wrong the moment the set stops being what it was called when it was created —
+ * and up to now the only way to fix it was to build a new setlist and drag
+ * every song across.
+ */
+export function RenameSetlistDialog({
+  setlist,
+  bands,
+  onSave,
+  onClose
+}: {
+  setlist: SetlistView
+  bands: string[]
+  onSave: (patch: { name: string; band: string | null }) => Promise<void>
+  onClose: () => void
+}): ReactNode {
+  const str = useStrings()
+  const [name, setName] = useState(setlist.name)
+  const [band, setBand] = useState(setlist.band ?? '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const ready = name.trim().length > 0
+
+  const save = async (): Promise<void> => {
+    if (!ready || busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      await onSave({ name: name.trim(), band: band.trim() || null })
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title={str.manual.renameSetlist} onClose={onClose}>
+      <div className="space-y-3">
+        <NeuInput
+          label={`${str.manual.setlistName} · ${str.manual.required}`}
+          value={name}
+          autoFocus
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void save()
+          }}
+        />
+
+        <div>
+          <NeuInput
+            label={str.manual.band}
+            placeholder={str.manual.bandPlaceholder}
+            value={band}
+            onChange={(e) => setBand(e.target.value)}
+          />
+          {bands.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {bands.map((b) => (
+                <button
+                  key={b}
+                  onClick={() => setBand(band === b ? '' : b)}
+                  className={cx(
+                    'rounded-full px-2.5 py-1 text-[11px] font-semibold',
+                    band === b ? 'neu-glow gradient-text' : 'neu-press text-txt-dim'
+                  )}
+                >
+                  {b}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {error && <div className="neu-inset text-danger rounded-[14px] p-3 text-[12px]">{error}</div>}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <NeuButton onClick={onClose}>{str.common.cancel}</NeuButton>
+          <NeuButton variant="accent" onClick={save} disabled={!ready || busy}>
+            {busy ? <Spinner size={14} /> : str.common.save}
+          </NeuButton>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/**
  * A setlist typed in by hand.
  *
  * The show is booked before the songs are chosen, so the name is the only
