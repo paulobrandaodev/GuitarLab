@@ -108,7 +108,7 @@ export interface SectionView {
   startBar: number | null
   endBar: number | null
   color: string | null
-  source: 'gp' | 'analysis' | 'manual'
+  source: 'gp' | 'analysis' | 'manual' | 'ai'
 }
 
 export interface ProgressView {

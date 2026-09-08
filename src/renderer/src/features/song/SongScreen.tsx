@@ -28,6 +28,7 @@ import {
   IconWave,
   IconX
 } from '../../components/ui/icons'
+import { ChordProView } from '../../components/ui/chordpro'
 import { ToneTab } from './ToneTab'
 import { ChordMap } from './ChordMap'
 import { YoutubePlayer } from './YoutubePlayer'
@@ -353,65 +354,6 @@ function VideoTab({ song }: { song: SongView }): ReactNode {
 
 /* ------------------------------------------------------------------ chart */
 
-/** Minimal ChordPro renderer: chords in brackets float above the lyric syllable. */
-function ChordProView({ content }: { content: string }): ReactNode {
-  const lines = content.split(/\r?\n/)
-  return (
-    <div className="font-mono text-[13px] leading-[2.1]">
-      {lines.map((line, i) => {
-        const directive = line.match(/^\{(\w+)\s*:?\s*(.*)\}$/)
-        if (directive) {
-          const [, key, value] = directive
-          if (key === 'comment' || key === 'c') {
-            return (
-              <div key={i} className="text-txt-micro my-1 text-[11px] italic">
-                {value}
-              </div>
-            )
-          }
-          if (key.startsWith('start_of')) {
-            return (
-              <div key={i} className="micro-label mt-3">
-                {key.replace('start_of_', '')}
-              </div>
-            )
-          }
-          if (key.startsWith('end_of')) return <div key={i} className="h-2" />
-          return (
-            <div key={i} className="text-txt-dim text-xs">
-              <span className="micro-label mr-2">{key}</span>
-              {value}
-            </div>
-          )
-        }
-        if (!line.trim()) return <div key={i} className="h-3" />
-
-        const parts = line.split(/(\[[^\]]+\])/g).filter(Boolean)
-        return (
-          <div key={i} className="flex flex-wrap">
-            {parts.map((part, j) => {
-              if (part.startsWith('[') && part.endsWith(']')) {
-                return (
-                  <span key={j} className="relative inline-block">
-                    <span className="gradient-text absolute -top-[1.35em] text-[11px] font-bold whitespace-nowrap">
-                      {part.slice(1, -1)}
-                    </span>
-                  </span>
-                )
-              }
-              return (
-                <span key={j} className="whitespace-pre-wrap">
-                  {part}
-                </span>
-              )
-            })}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 function ChartTab({
   song,
   media,
@@ -610,7 +552,7 @@ function ChartTab({
           <p className="text-txt-micro mb-3 text-[10px] leading-snug">{readiness.reason}</p>
           {chords ? (
             <div className="scroll-area max-h-[460px]">
-              <ChordProView content={chords.content} />
+              <ChordProView content={chords.content} className="font-mono" />
             </div>
           ) : (
             <EmptyState
@@ -689,6 +631,44 @@ function DataTab({
     tuningId: song.tuning ? String(song.tuning.id) : '',
     notes: song.notes ?? ''
   })
+
+  /*
+   * Filling the sections from the AI.
+   *
+   * This is the one AI button in the app that overwrites the user's own data
+   * rather than adding to it: sections carry the per-trecho progress and the
+   * study-queue pins, and replacing them takes those with them. So it asks
+   * first whenever there is something to lose, and the confirmation names what
+   * goes — a screen that quietly deleted three months of progress marks would
+   * be a bug even if every section it wrote were perfect.
+   */
+  const [sectionsLoading, setSectionsLoading] = useState(false)
+  const aiSections = sections.filter((sec) => sec.source === 'ai').length
+
+  const fetchSections = async (): Promise<void> => {
+    if (
+      sections.length > 0 &&
+      !window.confirm(
+        `Isso substitui os ${sections.length} trechos atuais desta música e o progresso ` +
+          'marcado em cada um. Continuar?'
+      )
+    ) {
+      return
+    }
+    setSectionsLoading(true)
+    try {
+      const res = await api.llm.sections(song.id)
+      if (isError(res)) show(res.error, 'danger')
+      else {
+        show(`${res.sections.length} trechos salvos`, 'ok')
+        onSaved()
+      }
+    } catch (err) {
+      show(err instanceof Error ? err.message : 'Falha ao consultar a IA', 'danger')
+    } finally {
+      setSectionsLoading(false)
+    }
+  }
 
   const save = async (): Promise<void> => {
     await api.songs.update(song.id, {
@@ -769,26 +749,60 @@ function DataTab({
       </NeuCard>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <NeuCard className="p-4">
-          <div className="micro-label mb-3">Seções ({sections.length})</div>
+        <NeuCard className="flex flex-col p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="micro-label">Seções ({sections.length})</div>
+            {aiSections > 0 && <Badge tone="accent">{aiSections} pela IA</Badge>}
+          </div>
+
           {sections.length ? (
             <div className="space-y-1">
               {sections.map((s) => (
                 <div key={s.id} className="flex items-center gap-2 text-xs">
                   <Badge>{s.kind}</Badge>
-                  <span className="flex-1 font-semibold">{s.name}</span>
-                  <span className="text-txt-micro tabular-nums">
-                    c. {(s.startBar ?? 0) + 1}–{(s.endBar ?? 0) + 1}
+                  <span className="flex-1 truncate font-semibold" title={s.name}>
+                    {s.name}
                   </span>
+                  {s.startBar !== null && s.endBar !== null ? (
+                    <span className="text-txt-micro tabular-nums">
+                      c. {s.startBar + 1}–{s.endBar + 1}
+                    </span>
+                  ) : s.startMs !== null ? (
+                    <span className="text-txt-micro tabular-nums">
+                      {formatDuration(s.startMs)}
+                    </span>
+                  ) : (
+                    <span className="text-txt-micro">sem posição</span>
+                  )}
                   <span className="text-txt-micro">{s.source}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-txt-micro text-xs">
-              Nenhuma seção. Arquivos Guitar Pro com marcadores criam as seções automaticamente.
+            <p className="text-txt-micro text-xs leading-relaxed">
+              Nenhuma seção. Arquivos Guitar Pro com marcadores criam as seções automaticamente —
+              quando não vêm no arquivo, a IA pode montar a estrutura da música.
             </p>
           )}
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-txt-micro min-w-[140px] flex-1 text-[10px] leading-snug">
+              {sections.length
+                ? 'Buscar de novo substitui estes trechos e o progresso marcado neles.'
+                : 'Os trechos viram os botões de loop no player e as linhas de progresso.'}
+            </p>
+            <NeuButton
+              variant={sections.length ? 'default' : 'accent'}
+              onClick={() => void fetchSections()}
+              disabled={sectionsLoading}
+              className="!px-3 !py-2 !text-[11px]"
+            >
+              <span className="flex items-center gap-2">
+                {sectionsLoading ? <Spinner size={13} /> : <IconSparkle width={14} height={14} />}
+                {sections.length ? 'Buscar de novo' : 'Buscar seções com IA'}
+              </span>
+            </NeuButton>
+          </div>
         </NeuCard>
 
         <NeuCard className="p-4">
