@@ -29,7 +29,7 @@ const ELECTRON = resolve(
 )
 
 /** The song the tour is built around: it has a tab, audio, stems, a chart and videos. */
-const SONG = 'Master of Puppets'
+const SONG = 'Like a Stone'
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -118,6 +118,31 @@ async function click(text) {
     return true
   })()`)
   if (!hit) throw new Error(`não achei nada clicável com "${text}"`)
+  await wait(500)
+}
+
+/** Like `click`, but a miss is an answer rather than a failure. */
+async function clickIfPresent(text) {
+  try {
+    await click(text)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Click the button whose label starts with `prefix` — for "Todas (33)". */
+async function clickPrefix(prefix) {
+  const hit = await evaluate(`(() => {
+    const want = ${JSON.stringify(prefix)}.toLowerCase()
+    const el = [...document.querySelectorAll('button')].find(
+      (x) => x.offsetParent && (x.innerText || '').trim().toLowerCase().startsWith(want)
+    )
+    if (!el) return false
+    el.click()
+    return true
+  })()`)
+  if (!hit) throw new Error(`não achei um botão começando com "${prefix}"`)
   await wait(500)
 }
 
@@ -232,8 +257,16 @@ try {
 
   await shoot('01-setlist', 'setlist, prontidão e ordem do show')
 
-  /* The rows expand in place; the expanded one is where a song is opened from. */
-  await click(SONG)
+  /*
+   * The tour needs the song on screen, and the setlist that is active when the
+   * script starts is whatever the user left active. Fall back to the whole
+   * library rather than fail: the row is the same either way.
+   */
+  if (!(await clickIfPresent(SONG))) {
+    await clickPrefix('Todas (')
+    await wait(700)
+    await click(SONG)
+  }
   await waitForText('Abrir música')
   await shoot('02-setlist-musica', 'uma música aberta na lista')
 
@@ -254,6 +287,8 @@ try {
 
   await click('Cifra')
   await wait(2500)
+  // past the detected-chord grid, onto the written cifra and the lyric beside it
+  await scrollBy(760)
   await shoot('06-cifra', 'cifra e letra sincronizada')
 
   await click('Vídeos')

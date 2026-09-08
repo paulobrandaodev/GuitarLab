@@ -172,7 +172,7 @@ e o dirige, então elas são regeradas em vez de refeitas na mão.
 </tr>
 <tr>
 <td><b>Afinador</b> — microfone e detecção de pitch, com o preset vindo do arquivo GP.</td>
-<td><b>Modo Palco</b> — tela cheia, cifra grande e ajustável, repertório com as trocas de afinação, avanço por teclado ou pedal (setas / PageUp / PageDown).</td>
+<td><b>Modo Palco</b> — tela cheia, cifra grande e ajustável, rolagem automática em dez velocidades, metrônomo no BPM da música, repertório com as trocas de afinação, avanço por teclado ou pedal (setas / PageUp / PageDown).</td>
 </tr>
 </table>
 

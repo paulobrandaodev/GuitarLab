@@ -180,7 +180,7 @@ a mano. La interfaz que se ve está en portugués, por lo explicado justo arriba
 </tr>
 <tr>
 <td><b>Afinador</b> — micrófono y detección de tono, con el preajuste tomado del archivo GP.</td>
-<td><b>Modo escenario</b> — pantalla completa, letra y acordes grandes, avance por teclado o pedal (flechas / AvPág / RePág).</td>
+<td><b>Modo escenario</b> — pantalla completa, cifrado grande y ajustable, desplazamiento automático en diez velocidades, metrónomo al BPM de la canción, repertorio con los cambios de afinación, avance por teclado o pedal (flechas / AvPág / RePág).</td>
 </tr>
 </table>
 

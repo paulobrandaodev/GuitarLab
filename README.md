@@ -176,7 +176,7 @@ them is Portuguese, for the reason just above.
 </tr>
 <tr>
 <td><b>Tuner</b> — microphone and pitch detection, with the preset taken from the GP file.</td>
-<td><b>Stage mode</b> — full screen, large lyrics and chords, advance by keyboard or foot pedal (arrows / PageUp / PageDown).</td>
+<td><b>Stage mode</b> — full screen, large adjustable chart, auto-scroll at ten speeds, a click at the song’s own BPM, the set with its tuning changes, advance by keyboard or foot pedal (arrows / PageUp / PageDown).</td>
 </tr>
 </table>
 
