@@ -1,6 +1,6 @@
 {
   "name": "guitarlab",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "GuitarLab — estudo de guitarra: setlist, tablatura, stems, cifras e timbres",
   "main": "./out/main/index.js",
   "author": "Paulo Brandao",
