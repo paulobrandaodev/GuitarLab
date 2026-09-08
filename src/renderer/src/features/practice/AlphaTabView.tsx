@@ -231,6 +231,15 @@ export const AlphaTabView = forwardRef<AlphaTabHandle, Props>(function AlphaTabV
     // negative offset pulls the played system down to the middle of the viewport
     settings.player.scrollOffsetY = centeringOffset(scrollRef.current)
 
+    /*
+     * The accent, as alphaTab sees it.
+     *
+     * Same RGB as `--color-accent-2`, which is what the playback cursor and the
+     * bar numbers are painted with — the chord diagrams join them below so the
+     * whole "this is the app talking, not the score" layer is one colour.
+     */
+    const ACCENT = new alphaTab.model.Color(255, 138, 92)
+
     // dark theme for the rendered score
     settings.display.resources.mainGlyphColor = new alphaTab.model.Color(233, 233, 240)
     settings.display.resources.secondaryGlyphColor = new alphaTab.model.Color(139, 139, 152)
@@ -327,6 +336,25 @@ export const AlphaTabView = forwardRef<AlphaTabHandle, Props>(function AlphaTabV
       if (disposed) return
       setLoading(false)
       setRendering(true)
+
+      /*
+       * The chord diagrams above the score, in the accent colour.
+       *
+       * They are not covered by `RenderingResources` — the grid and its name
+       * are painted with whatever colour the enclosing element left on the
+       * canvas, which on this dark theme came out as the same muted grey as the
+       * staff, so the chord charts read as part of the paper rather than as
+       * something to look at. `ScoreStyle` is alphaTab's per-score override and
+       * `ChordDiagramList` is the sub-element that whole strip goes through.
+       *
+       * Set here rather than in the settings above because it lives on the
+       * score, not on the renderer, and the score only exists once it is
+       * parsed. `scoreLoaded` runs synchronously before the first layout pass,
+       * so this lands in time and costs no extra render.
+       */
+      const style = score.style ?? new alphaTab.model.ScoreStyle()
+      style.colors.set(alphaTab.model.ScoreSubElement.ChordDiagramList, ACCENT)
+      score.style = style
 
       const tracks: AlphaTabTrack[] = score.tracks.map((t) => {
         const staff = t.staves[0]

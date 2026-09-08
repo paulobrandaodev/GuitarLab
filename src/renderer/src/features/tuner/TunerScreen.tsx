@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { PitchDetector } from 'pitchy'
 import { NeuCard, NeuButton, NeuSelect, Badge, cx } from '../../components/ui'
 import { api } from '../../lib/api'
@@ -23,6 +23,23 @@ function noteToFreq(name: string): number | null {
   return 440 * Math.pow(2, (midi - 69) / 12)
 }
 
+/** The key the chosen microphone is remembered under, per machine. */
+const INPUT_KEY = 'guitarlab.tuner.inputDeviceId'
+
+/**
+ * A readable name for a microphone.
+ *
+ * Chromium hands out empty labels until the page has been granted microphone
+ * access once, so before the first "Ligar microfone" there is a list of devices
+ * with no names. Numbering them keeps the select usable in that state instead
+ * of showing a column of blanks.
+ */
+function deviceLabel(device: MediaDeviceInfo, index: number): string {
+  if (device.label) return device.label
+  if (device.deviceId === 'default') return 'Dispositivo padrão'
+  return `Entrada ${index + 1}`
+}
+
 export function TunerScreen({ songId }: { songId?: number }): ReactNode {
   const [listening, setListening] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -30,6 +47,15 @@ export function TunerScreen({ songId }: { songId?: number }): ReactNode {
   const [tunings, setTunings] = useState<TuningView[]>([])
   const [tuningId, setTuningId] = useState<string>('')
   const [song, setSong] = useState<SongView | null>(null)
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
+  /**
+   * Which input to listen on. Empty means "whatever the system calls default",
+   * which is what an untouched install should use — an interface plugged in
+   * after the fact then just works without visiting this select.
+   */
+  const [deviceId, setDeviceId] = useState<string>(
+    () => localStorage.getItem(INPUT_KEY) ?? ''
+  )
 
   const streamRef = useRef<MediaStream | null>(null)
   const ctxRef = useRef<AudioContext | null>(null)
@@ -47,6 +73,32 @@ export function TunerScreen({ songId }: { songId?: number }): ReactNode {
       })
     }
   }, [songId])
+
+  /*
+   * The list of inputs, refreshed whenever the machine's audio hardware
+   * changes. `devicechange` is what catches an interface being plugged in while
+   * the tuner is open, which is exactly when a guitarist would plug one in.
+   */
+  const refreshDevices = useCallback(async () => {
+    try {
+      const all = await navigator.mediaDevices.enumerateDevices()
+      const inputs = all.filter((d) => d.kind === 'audioinput')
+      setDevices(inputs)
+      // a remembered device that has since been unplugged falls back to default
+      setDeviceId((current) =>
+        current && !inputs.some((d) => d.deviceId === current) ? '' : current
+      )
+    } catch {
+      setDevices([])
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshDevices()
+    const onChange = (): void => void refreshDevices()
+    navigator.mediaDevices?.addEventListener?.('devicechange', onChange)
+    return () => navigator.mediaDevices?.removeEventListener?.('devicechange', onChange)
+  }, [refreshDevices])
 
   const stop = (): void => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
@@ -66,12 +118,22 @@ export function TunerScreen({ songId }: { songId?: number }): ReactNode {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
+          /*
+           * All three off on purpose: they are tuned for speech and they fight
+           * a tuner. Echo cancellation and noise suppression treat a sustained
+           * single note as background and gate it out, and automatic gain
+           * pumps the level while the note decays, which moves the pitch the
+           * detector reads.
+           */
           echoCancellation: false,
           noiseSuppression: false,
-          autoGainControl: false
+          autoGainControl: false,
+          ...(deviceId ? { deviceId: { exact: deviceId } } : {})
         }
       })
       streamRef.current = stream
+      // labels only arrive once access has been granted, so re-read the list
+      void refreshDevices()
 
       const ctx = new AudioContext()
       ctxRef.current = ctx
@@ -98,6 +160,22 @@ export function TunerScreen({ songId }: { songId?: number }): ReactNode {
           ? `Não consegui acessar o microfone: ${err.message}`
           : 'Não consegui acessar o microfone'
       )
+    }
+  }
+
+  /** Picking a different input restarts the capture on it, if one is running. */
+  const pickDevice = (next: string): void => {
+    setDeviceId(next)
+    try {
+      if (next) localStorage.setItem(INPUT_KEY, next)
+      else localStorage.removeItem(INPUT_KEY)
+    } catch {
+      // a locked-down profile can refuse storage; the choice just is not kept
+    }
+    if (listening) {
+      stop()
+      // let the old stream release the device before asking for the new one
+      setTimeout(() => void start(), 60)
     }
   }
 
@@ -147,17 +225,39 @@ export function TunerScreen({ songId }: { songId?: number }): ReactNode {
           <h1 className="text-xl font-bold">Afinador</h1>
           {song && <p className="text-txt-dim text-sm">{song.title}</p>}
         </div>
-        <div className="w-64">
-          <NeuSelect
-            value={tuningId}
-            onChange={setTuningId}
-            options={tunings.map((t) => ({
-              value: String(t.id),
-              label: `${t.name} · ${t.strings.join(' ')}`
-            }))}
-          />
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-60">
+            <NeuSelect
+              label="entrada de áudio"
+              value={deviceId}
+              onChange={pickDevice}
+              options={[
+                { value: '', label: 'Padrão do sistema' },
+                ...devices
+                  .filter((d) => d.deviceId !== 'default')
+                  .map((d, i) => ({ value: d.deviceId, label: deviceLabel(d, i) }))
+              ]}
+            />
+          </div>
+          <div className="w-64">
+            <NeuSelect
+              label="afinação"
+              value={tuningId}
+              onChange={setTuningId}
+              options={tunings.map((t) => ({
+                value: String(t.id),
+                label: `${t.name} · ${t.strings.join(' ')}`
+              }))}
+            />
+          </div>
         </div>
       </div>
+
+      {devices.length > 0 && !devices.some((d) => d.label) && (
+        <p className="text-txt-micro mb-4 text-[11px]">
+          Os nomes dos dispositivos só aparecem depois de liberar o microfone uma vez.
+        </p>
+      )}
 
       {pitchPlan?.enabled && playedTuning && (
         <NeuCard className="mb-4 flex flex-wrap items-center gap-3 p-4">

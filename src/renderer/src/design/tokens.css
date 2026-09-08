@@ -158,6 +158,21 @@ body {
   color: transparent;
 }
 
+/*
+  An icon standing next to a gradient label.
+
+  `.gradient-text` paints the gradient behind the element, clips it to the
+  glyphs and then sets `color: transparent` so it shows through. `color`
+  inherits, and every icon in this app is drawn with `stroke="currentColor"` —
+  so an icon inside a gradient label inherited the transparency and vanished.
+  That is what left the selected room in the song menu as the one row with no
+  icon, and it did the same to the accent badges and to the active segment of a
+  switcher. They take the solid accent the gradient reads as instead.
+*/
+.gradient-text svg {
+  color: var(--color-accent-2);
+}
+
 .gradient-bg {
   background: var(--gradient-hot);
 }
